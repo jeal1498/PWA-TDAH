@@ -288,6 +288,7 @@ nav button[aria-selected="true"]{color:var(--accent)}
   </div></div>
 </section>
 
+<script src="prompts.js"></script>
 <script>
 // ---------- Mascota original: Chispa, una luciérnaga ----------
 const CHISPA=`<svg class="chispa" viewBox="0 0 64 64" aria-hidden="true">
@@ -491,10 +492,21 @@ $("closeBtn").onclick=closeLesson;
 // ---------- Hacer: IA (Claude) con respaldo local ----------
 const samplePromise=(window.claude?.use?claude.use("sample"):Promise.resolve(null)).catch(()=>null);
 let aiOff=false;
-async function askJSON(prompt){
-  const sample=await samplePromise;if(!sample||aiOff)return null;
-  try{return await sample.json(prompt,{modelTier:"quick"})}
-  catch(e){if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code))aiOff=true;return null}
+// IA: dentro de Claude usa la cuenta de quien la abre; publicada usa el servidor propio (api/ai.js)
+async function askAI(kind,payload){
+  if(aiOff)return null;
+  const sample=await samplePromise;
+  if(sample){
+    try{return await sample.json(ARRANCA_PROMPTS[kind](payload),{modelTier:"quick"})}
+    catch(e){if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code))aiOff=true;return null}
+  }
+  if(location.protocol==="file:")return null;
+  try{
+    const r=await fetch("api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind,payload})});
+    if(r.status===404||r.status===503){aiOff=true;return null}
+    if(!r.ok)return null;
+    return (await r.json()).result??null;
+  }catch(e){return null}
 }
 const fallbackSteps=t=>[{s:"Junta lo que necesitas para: "+t,m:2},{s:"Haz solo la parte más fácil",m:3},{s:"Sigue 5 minutos más, sin juzgarte",m:5},{s:"Revisa lo que hiciste y ciérralo",m:3}];
 const openItems=()=>S.inbox.filter(x=>x.status==="open");
@@ -520,7 +532,7 @@ function heuristicRank(){
 async function rank(){
   const o=openItems();if(o.length<2||ranking_busy){ranking=heuristicRank();renderNow();return}
   ranking=heuristicRank();renderNow();ranking_busy=true;
-  const res=await askJSON(`Ayudas a un adulto con TDAH a decidir qué hacer AHORA. Ordena estos pendientes del más conveniente para empezar ahora al menos conveniente, considerando urgencia, consecuencias de no hacerlo y qué tan fácil es arrancar. Las tareas marcadas [empezada] cuestan menos de retomar. Responde solo un arreglo JSON de objetos {"i": índice, "why": razón amable en español de México, máx 15 palabras}.\n\n${o.map((x,i)=>i+". "+x.t+(x.started?" [empezada]":"")).join("\n")}`);
+  const res=await askAI("rank",{items:o.map(x=>({t:x.t,started:x.started}))});
   ranking_busy=false;
   if(Array.isArray(res)){const seen=new Set();const r=[];
     res.forEach(x=>{const it=o[Number(x?.i)];if(it&&!seen.has(it.id)){seen.add(it.id);r.push({id:it.id,why:String(x.why||"")})}});
@@ -551,7 +563,7 @@ async function startItem(id){
     const used=S.tasksToday[today()]||0;
     if(used>=FREE_TASKS){$("quota").textContent="Llegaste a 3 tareas nuevas gratis hoy. Puedes retomar las que ya empezaste. Con Premium son ilimitadas.";return}
     const b=$("nowStart");b.disabled=true;b.textContent="Preparando pasos mini…";
-    const res=await askJSON(`Eres un apoyo para adultos con TDAH. Divide esta tarea en 3 a 6 pasos muy pequeños, concretos y físicos, en español de México, tono amable. Cada paso debe durar entre 2 y 5 minutos y el primero debe ser ridículamente fácil. Responde solo un arreglo JSON de objetos {"s": texto del paso (máx 12 palabras), "m": minutos (2-5)}.\n\nTarea: ${it.t}`);
+    const res=await askAI("steps",{task:it.t});
     b.disabled=false;
     let steps=Array.isArray(res)?res.filter(x=>x&&x.s).slice(0,6).map(x=>({s:String(x.s),m:Math.min(5,Math.max(2,Number(x.m)||3))})):null;
     it.steps=steps&&steps.length?steps:fallbackSteps(it.t);
@@ -562,7 +574,7 @@ async function startItem(id){
 async function stuck(){
   const c=active();if(!c)return;const stp=c.steps[c.idx];
   const b=$("stuckBtn");b.disabled=true;b.textContent="Buscando algo más fácil…";
-  const res=await askJSON(`Un adulto con TDAH no logra empezar este paso: "${stp.s}" (de la tarea "${c.t}"). Propón UN paso aún más pequeño que tome menos de 1 minuto, físico y concreto, y una frase breve y compasiva. Responde solo JSON {"s": paso (máx 10 palabras), "f": frase (máx 14 palabras)}.`);
+  const res=await askAI("mini",{step:stp.s,task:c.t});
   const mini=res&&res.s?{s:String(res.s),f:String(res.f||"")}:{s:"Solo ponte de pie y acércate a donde harás esto",f:"Empezar pequeño también cuenta."};
   c.steps.splice(c.idx,0,{s:mini.s,m:1});save();
   $("stuckNote").textContent=mini.f;$("stuckNote").hidden=false;

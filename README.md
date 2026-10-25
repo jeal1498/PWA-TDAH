@@ -10,6 +10,17 @@ Todo se guarda en el dispositivo (localStorage). Sin conexión funciona gracias 
 
 > Arranca ofrece psicoeducación y estrategias. No sustituye diagnóstico ni tratamiento profesional.
 
+## IA (Claude Haiku 5.5)
+La app pide ayuda a `api/ai.js`, que guarda la clave de Anthropic en el servidor. Las instrucciones para la IA están en `prompts.js`.
+Si el servidor no está disponible, la app sigue funcionando con pasos genéricos.
+
+### Publicar en Vercel
+1. Entra a vercel.com con tu cuenta de GitHub e importa este repo (sin configuración extra).
+2. En **Settings → Environment Variables** agrega `ANTHROPIC_API_KEY` con tu clave de console.anthropic.com.
+3. Vuelve a desplegar. La app queda en `https://<tu-proyecto>.vercel.app`.
+
+Límite básico: 60 peticiones por hora por persona.
+
 ## Pendiente
-- La división de tareas con IA solo funciona dentro de Claude. Aquí usa pasos genéricos; para IA real se necesita un pequeño servidor que guarde la clave de API.
 - Empaquetar como APK para Play Store con Bubblewrap (TWA).
+- Cuentas de usuario y pagos (Premium).
