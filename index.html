@@ -107,6 +107,13 @@ textarea:focus{outline:none;border-color:var(--calm)}
 .picklist button{text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:flex;justify-content:space-between;gap:10px}
 .picklist .tag{font-size:13px;color:var(--muted);flex:none}
 .helped{color:var(--ok);font-weight:700}
+.welcome{background:var(--ok-soft);border-color:var(--ok)}
+.welcome-row{display:flex;gap:12px;align-items:flex-end}
+.welcome-row p{margin:0;font-size:15px}
+.welcome-row b{font-family:var(--display);font-size:20px}
+.energy-btn{align-self:flex-start;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:15px;background:var(--surface)}
+.energy-btn[aria-pressed="true"]{background:var(--calm-soft);border-color:var(--calm);color:var(--calm);font-weight:700}
+.lowmsg{margin:0;font-size:15px;color:var(--calm);font-weight:700}
 
 /* progreso */
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
@@ -190,6 +197,12 @@ nav button[aria-selected="true"]{color:var(--accent)}
 
 <!-- HOY -->
 <section class="wrap view" id="view-hacer">
+  <div class="card welcome" id="welcomeCard" hidden>
+    <div class="welcome-row"><span id="welcomeMascot"></span><div style="min-width:0"><b>¡Qué bueno verte!</b><p id="welcomeText"></p></div></div>
+    <button class="primary" id="welcomeSmall">Empezar con algo pequeño</button>
+    <button class="ghost" id="welcomeClose">Ver mi día</button>
+  </div>
+  <button class="energy-btn" id="energyBtn" aria-pressed="false">🔋 Hoy tengo poca energía</button>
   <div class="card resume" id="resumeCard" hidden>
     <span class="label">Retoma donde te quedaste</span>
     <b id="resumeTitle"></b>
@@ -198,7 +211,7 @@ nav button[aria-selected="true"]{color:var(--accent)}
   </div>
 
   <div class="card now" id="nowCard" hidden>
-    <span class="label">Ahora, solo esto</span>
+    <span class="label" id="nowLabel">Ahora, solo esto</span>
     <div class="step-text" id="nowText"></div>
     <p class="why" id="nowWhy"></p>
     <button class="primary" id="nowStart">Empezar esta</button>
@@ -242,6 +255,7 @@ nav button[aria-selected="true"]{color:var(--accent)}
       <div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>
     </div>
     <button class="primary" id="againBtn">Siguiente</button>
+    <button class="ghost" id="oneMoreBtn" style="width:100%" hidden>Tengo para un paso más</button>
   </div>
 </section>
 
@@ -509,6 +523,10 @@ async function askAI(kind,payload){
   }catch(e){return null}
 }
 const fallbackSteps=t=>[{s:"Junta lo que necesitas para: "+t,m:2},{s:"Haz solo la parte más fácil",m:3},{s:"Sigue 5 minutos más, sin juzgarte",m:5},{s:"Revisa lo que hiciste y ciérralo",m:3}];
+// Modo día sin energía: dura solo el día de hoy
+const isLow=()=>S.lowDay===today();
+$("energyBtn").onclick=()=>{S.lowDay=isLow()?null:today();save();renderTask()};
+let lowDoneId=null;
 const openItems=()=>S.inbox.filter(x=>x.status==="open");
 const byId=id=>S.inbox.find(x=>x.id===id);
 const active=()=>S.activeId?byId(S.activeId):null;
@@ -544,7 +562,9 @@ function renderNow(){
   const c=current();$("nowCard").hidden=!c||!!active();
   if(!c)return;const it=byId(c.id);
   $("nowText").textContent=it.t;$("nowWhy").textContent=c.why;
-  $("nowStart").textContent=it.started?"Retomar esta":"Empezar esta";
+  $("nowStart").textContent=isLow()?"Hacer solo 2 minutos":it.started?"Retomar esta":"Empezar esta";
+  $("nowLabel").textContent=isLow()?"Hoy, solo un paso":"Ahora, solo esto";
+  $("nowWhy").textContent=isLow()?"Con poca energía, basta con un paso pequeño. "+c.why:c.why;
   $("nowOther").disabled=ranking.filter(r=>r.id!==resumable()?.id).length<2;
   const used=S.tasksToday[today()]||0;$("quota").textContent=`${Math.max(0,FREE_TASKS-used)} de ${FREE_TASKS} tareas nuevas gratis hoy`;
 }
@@ -598,10 +618,14 @@ $("doneBtn").onclick=()=>{
   const c=active();if(!c)return;markActive();S.stepsDone++;addXp(XP_STEP);c.idx++;c.touched=Date.now();$("stuckNote").hidden=true;
   if(c.idx>=c.steps.length){c.status="done";S.tasksDone++;addXp(XP_TASK);S.activeId=null;lastDone=c.id;
     $("doneText").textContent=`Terminaste "${c.t}" en ${c.steps.length} pasos mini. +${XP_TASK} XP extra. Date tu premio.`;
-    $("helpAsk").hidden=false;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
+    $("helpAsk").hidden=false;$("againBtn").textContent="Siguiente";$("oneMoreBtn").hidden=true;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
     save();clearInterval(tick);tick=null;renderTask(true);return}
+  if(isLow()){lowDoneId=c.id;c.touched=Date.now();S.activeId=null;save();clearInterval(tick);tick=null;
+    $("doneText").textContent="Hiciste tu paso de hoy. Con poca energía, eso es suficiente. Tu avance quedó guardado.";
+    $("helpAsk").hidden=true;$("againBtn").textContent="Listo por hoy";$("oneMoreBtn").hidden=false;renderTask(true);return}
   save();resetTimer();renderTask();
 };
+$("oneMoreBtn").onclick=()=>{if(lowDoneId)startItem(lowDoneId)};
 // 4. Te ayuda a retomar: pausar nunca borra el avance
 $("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
 $("resumeBtn").onclick=()=>{const r=resumable();if(r)startItem(r.id)};
@@ -615,7 +639,9 @@ function renderTask(celebrate){
   const c=active();const showDone=!!celebrate;
   $("doneCard").hidden=!showDone;$("focusCard").hidden=!c;
   const idle=!c&&!showDone;
-  $("dumpCard").hidden=!idle;
+  $("dumpCard").hidden=!idle||isLow();
+  $("energyBtn").hidden=!!c;$("energyBtn").setAttribute("aria-pressed",isLow());
+  $("energyBtn").textContent=isLow()?"🔋 Modo poca energía activo · toca para salir":"🔋 Hoy tengo poca energía";
   const r=resumable();
   $("resumeCard").hidden=!idle||!r;
   if(r){$("resumeTitle").textContent=r.t;$("resumeStep").textContent=`Vas en el paso ${r.idx+1} de ${r.steps.length}. Tu avance sigue aquí.`}
@@ -636,6 +662,19 @@ function renderProgress(){
 $("restBtn").onclick=()=>{if(RESTS-restsUsed()>0&&!S.days[today()]){S.days[today()]="rest";save();renderAll()}};
 
 function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp;renderPath();renderTask();renderProgress()}
+(function welcome(){
+  const startOf=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
+  const gap=S.lastSeen?Math.round((startOf(Date.now())-startOf(S.lastSeen))/864e5):0;
+  const hasHistory=S.tasksStarted>0||S.done.length>0||S.tasksDone>0;
+  S.lastSeen=Date.now();save();
+  if(gap>=2&&hasHistory){
+    $("welcomeMascot").innerHTML=CHISPA;
+    $("welcomeText").textContent="Volviste, y eso es lo que importa. No tienes que ponerte al corriente con nada: tu avance sigue aquí.";
+    $("welcomeCard").hidden=false;
+  }
+})();
+$("welcomeSmall").onclick=()=>{S.lowDay=today();save();$("welcomeCard").hidden=true;renderTask()};
+$("welcomeClose").onclick=()=>{$("welcomeCard").hidden=true};
 resetTimer();renderAll();rank();
 </script>
 
