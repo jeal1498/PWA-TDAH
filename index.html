@@ -360,10 +360,37 @@ const UNITS=[
     {type:"tf",q:"Nombrar lo que sientes puede ayudarte a calmarte.",a:true,why:"Ponerle nombre a la emoción ayuda al cerebro a regularla."}
    ],reto:"La próxima vez que sientas una emoción fuerte, nómbrala en voz baja antes de reaccionar."}
  ]},
- {t:"Domina el tiempo",d:"Llega a tiempo y calcula mejor",lessons:[{t:"Alarmas de salida"},{t:"Tu tiempo real"},{t:"Bloques de tiempo"}]},
- {t:"Empieza tareas",d:"Rompe la parálisis",lessons:[{t:"La regla de los 2 minutos"},{t:"Body doubling"},{t:"Suficientemente bien"}]},
- {t:"Organiza tu entorno",d:"Menos fricción, más acción",lessons:[{t:"Quita fricción"},{t:"Ancla tus hábitos"},{t:"Descansos que sí descansan"}]}
+ {t:"Domina el tiempo",d:"Llega a tiempo y calcula mejor",c:"var(--calm)",premium:true,lessons:[
+  {t:"Alarmas de salida",icon:"⏰",
+   learn:["Llegar tarde casi siempre viene de pensar en la hora de llegar, no en la de salir.","Cambiar de actividad cuesta mucho con TDAH. Por eso ayuda una alarma de aviso unos 10 minutos antes y otra para salir.","Cuenta el tiempo invisible: buscar las llaves, bajar escaleras, estacionarte, caminar a la puerta."],
+   ex:[
+    {type:"mc",q:"Tu cita es a las 10:00 y el trayecto dura 20 minutos. ¿A qué hora debe sonar tu alarma de salida?",opts:["10:00","9:40","9:25"],a:2,why:"A los 20 minutos de trayecto súmale el tiempo invisible y un margen. Salir 9:25 te deja llegar con calma."},
+    {type:"tf",q:"Una sola alarma basta para dejar lo que estás haciendo y salir.",a:false,why:"Las transiciones cuestan. Un aviso previo le da a tu cerebro tiempo para cerrar lo que estaba haciendo."},
+    {type:"order",q:"Ordena una salida sin prisas:",items:["Suena la alarma de aviso, 10 minutos antes","Guardas o anotas lo que estabas haciendo","Tomas llaves y cartera de su lugar fijo","Sales cuando suena la alarma de salida"],why:"Aviso, cierre, lugar fijo y salida: menos carreras y menos olvidos."},
+    {type:"mc",q:"¿Qué es el tiempo invisible?",opts:["El tiempo que pierdes en redes","Lo que tardas en las partes que no planeas, como buscar llaves o estacionarte","El tiempo que duermes"],a:1,why:"Son minutos que no calculamos y que, sumados, nos hacen llegar tarde."}
+   ],reto:"Para tu próxima salida pon dos alarmas: una de aviso 10 minutos antes y una para salir."},
+  {t:"Tu tiempo real",icon:"📏",
+   learn:["Casi todas las personas subestiman cuánto tardan en hacer las cosas. Con TDAH, esa diferencia suele ser todavía mayor.","Adivinar no funciona. Medir sí: anota cuánto crees que tardarás y cuánto tardaste en realidad.","Mientras juntas tus datos, una regla útil es planear con tu estimación multiplicada por 1.5."],
+   ex:[
+    {type:"tf",q:"La mayoría de las personas, con o sin TDAH, subestima cuánto tarda en sus tareas.",a:true,why:"Es tan común que tiene nombre: falacia de planificación. Saberlo te quita culpa y te ayuda a planear mejor."},
+    {type:"mc",q:"Creías que tardabas 20 minutos en arreglarte y mediste 35. ¿Qué te conviene hacer?",opts:["Regañarte por lenta","Planear con 35 minutos a partir de hoy","Intentar hacerlo en 20 aunque sea a la carrera"],a:1,why:"Tu tiempo real es información, no un fracaso. Planear con él te evita prisas."},
+    {type:"mc",q:"Aún no tienes datos y crees que una tarea te tomará 30 minutos. ¿Cuánto tiempo apartas?",opts:["30 minutos","45 minutos","15 minutos"],a:1,why:"30 × 1.5 = 45. Si te sobra tiempo, es ganancia."},
+    {type:"order",q:"Ordena cómo descubrir tu tiempo real:",items:["Escribe cuánto crees que tardarás","Inicia un cronómetro","Haz la tarea","Anota el tiempo real y compáralo"],why:"Estimar, medir y comparar: así entrenas tu cálculo con datos."}
+   ],reto:"Esta semana mide 3 tareas de tu día: anota tu estimación y el tiempo real de cada una."},
+  {t:"Bloques de tiempo",icon:"🧱",
+   learn:["Un día sin estructura se diluye. Dividirlo en bloques cortos le da forma.","Prueba bloques de 15 a 25 minutos de trabajo con un descanso corto entre ellos, y ajusta la duración a lo que te funcione.","Deja bloques vacíos de respaldo: las cosas suelen tardar más de lo previsto y los imprevistos llegan."],
+   ex:[
+    {type:"tf",q:"Llenar cada minuto del día es la mejor forma de aprovecharlo.",a:false,why:"Un plan sin espacios se rompe con el primer imprevisto. Los bloques vacíos lo hacen realista."},
+    {type:"mc",q:"Si te cuesta concentrarte, ¿con qué duración de bloque conviene empezar?",opts:["2 horas seguidas","15 a 25 minutos","Sin límite, hasta terminar"],a:1,why:"Un bloque corto se siente posible, y eso te ayuda a arrancar."},
+    {type:"mc",q:"Un bloque se alargó y no terminaste a tiempo. ¿Qué haces?",opts:["Doy el día por perdido","Uso mi bloque de respaldo o muevo la tarea, sin culpa","Sigo sin descansar hasta terminar todo"],a:1,why:"Para eso existen los bloques de respaldo. Ajustar es parte del plan."},
+    {type:"order",q:"Ordena cómo armar tu mañana en bloques:",items:["Elige de 1 a 3 tareas","Dale a cada una un bloque corto","Deja un bloque libre de respaldo","Empieza el primer bloque con temporizador"],why:"Pocas tareas, bloques cortos, un respaldo y arrancar con el tiempo visible."}
+   ],reto:"Mañana organiza tu mañana en 3 bloques cortos y deja uno libre. Usa el temporizador de la pestaña Hoy.",tool:true}
+ ]},
+ {t:"Empieza tareas",d:"Rompe la parálisis",premium:true,lessons:[{t:"La regla de los 2 minutos"},{t:"Body doubling"},{t:"Suficientemente bien"}]},
+ {t:"Organiza tu entorno",d:"Menos fricción, más acción",premium:true,lessons:[{t:"Quita fricción"},{t:"Ancla tus hábitos"},{t:"Descansos que sí descansan"}]}
 ];
+// Prototipo: las unidades Premium con contenido se pueden probar
+const PREMIUM_PREVIEW=true;
 const MAX_HEARTS=5, XP_LESSON=10, XP_STEP=2, XP_TASK=10, FREE_TASKS=3, RESTS=2;
 const EXAMPLES=["Lavar los trastes","Contestar correos","Estudiar para el examen","Pagar los recibos"];
 
@@ -373,6 +400,7 @@ const dk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+Strin
 const today=()=>dk(new Date());
 let S={done:[],xp:0,days:{},tasksDone:0,tasksStarted:0,stepsDone:0,tasksToday:{},inbox:[],activeId:null,helped:{yes:0,no:0},seeded:false};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+S.done=S.done.map(x=>typeof x==="number"?"0-"+x:x); // migra el progreso anterior
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 let nextId=1+Math.max(0,...S.inbox.map(x=>x.id));
 const newItem=t=>({id:nextId++,t,steps:null,idx:0,status:"open",started:false,added:Date.now(),touched:0});
@@ -401,29 +429,34 @@ document.querySelectorAll("nav [data-view]").forEach(b=>b.onclick=()=>go(b.datas
 
 // ---------- Camino ----------
 function renderPath(){
-  const u1=UNITS[0].lessons;const next=u1.findIndex((_,i)=>!S.done.includes(i));
-  const msg=next===-1?"¡Terminaste la Unidad 1! Las siguientes unidades son parte de Premium.":S.done.length?"¡Vas muy bien! Sigue con la siguiente lección.":"¡Hola! Soy Chispa. Te acompaño a entender tu cerebro, un paso pequeño a la vez.";
+  const playable=ui=>!UNITS[ui].premium||(PREMIUM_PREVIEW&&!!UNITS[ui].lessons[0].ex);
+  let next=null;
+  for(let ui=0;ui<UNITS.length&&!next;ui++){if(!playable(ui))break;UNITS[ui].lessons.forEach((_,li)=>{if(!next&&!S.done.includes(ui+"-"+li))next=ui+"-"+li})}
+  const u1done=UNITS[0].lessons.every((_,li)=>S.done.includes("0-"+li));
+  const msg=!S.done.length?"¡Hola! Soy Chispa. Te acompaño a entender tu cerebro, un paso pequeño a la vez.":!next?"¡Terminaste todo lo disponible! Pronto llegan más lecciones.":u1done&&next.startsWith("1-0")?"¡Terminaste la Unidad 1! Ahora vamos a dominar el tiempo.":"¡Vas muy bien! Sigue con la siguiente lección.";
   let h=`<div class="mascot-row">${CHISPA}<p>${msg}</p></div>`;
   const offsets=[0,60,90,60,0,-60,-90,-60];
   UNITS.forEach((U,ui)=>{
-    const locked=ui>0;
-    h+=`<div class="unit ${locked?"locked":""}" style="${locked?"":"background:"+U.c}"><span class="label" style="color:inherit;opacity:.85">Unidad ${ui+1}</span><h2>${U.t}</h2><p>${U.d}</p>${locked?'<span class="prem">Premium</span>':""}</div><div class="nodes">`;
+    const locked=!playable(ui);
+    h+=`<div class="unit ${locked?"locked":""}" style="${locked?"":"background:"+U.c}"><span class="label" style="color:inherit;opacity:.85">Unidad ${ui+1}</span><h2>${U.t}</h2><p>${U.d}</p>${U.premium?`<span class="prem">${locked?"Premium":"Premium · abierta en la prueba"}</span>`:""}</div><div class="nodes">`;
     U.lessons.forEach((L,li)=>{
-      const st=locked?"locked":S.done.includes(li)?"done":li===next?"current":"locked";
+      const k=ui+"-"+li;
+      const st=locked?"locked":S.done.includes(k)?"done":k===next?"current":"locked";
       const ic=st==="done"?"✓":st==="locked"?"🔒":L.icon;
-      h+=`<div class="node ${st}" style="transform:translateX(${offsets[li%8]}px)">${st==="current"?'<span class="bubble">Empezar</span>':""}<button class="btn" ${st==="locked"?"disabled":`data-l="${li}"`} aria-label="${esc(L.t)}">${ic}</button><span class="name">${esc(L.t)}</span></div>`;
+      h+=`<div class="node ${st}" style="transform:translateX(${offsets[li%8]}px)">${st==="current"?'<span class="bubble">Empezar</span>':""}<button class="btn" ${st==="locked"?"disabled":`data-l="${k}"`} aria-label="${esc(L.t)}">${ic}</button><span class="name">${esc(L.t)}</span></div>`;
     });
     h+=`</div>`;
   });
   h+=`<p class="disclaimer">Arranca ofrece psicoeducación. No sustituye diagnóstico ni tratamiento profesional.</p>`;
   $("view-aprender").innerHTML=h;
-  $("view-aprender").querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>startLesson(+b.dataset.l));
+  $("view-aprender").querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>startLesson(b.dataset.l));
 }
 
 // ---------- Lección ----------
 let L,queue,step,total,hearts,sel,phase,correctCount,orderAns;
-function startLesson(i){
-  L=Object.assign({i},UNITS[0].lessons[i]);
+function startLesson(k){
+  const [ui,li]=k.split("-").map(Number);
+  L=Object.assign({i:k},UNITS[ui].lessons[li]);
   queue=[{type:"learn"},...L.ex.map(e=>({...e}))];
   total=queue.length;step=0;hearts=MAX_HEARTS;correctCount=0;
   $("lesson").hidden=false;document.body.style.overflow="hidden";show();
