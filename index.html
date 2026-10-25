@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Arranca · del bloqueo a la acción</title>
+<meta name="description" content="Arranca ayuda a adultos con TDAH a pasar del bloqueo a la acción: una tarea a la vez, en pasos mini.">
+<meta name="theme-color" content="#E8622A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: columna móvil con 3 pestañas abajo (Aprender = camino en zigzag, Hacer = paso actual con anillo, Progreso); la lección abre a pantalla completa */
+:root{
+  --bg:#F3F4F8; --surface:#FFFFFF; --ink:#19202C; --muted:#5E6877; --line:#DCE1EA;
+  --accent:#E8622A; --accent-deep:#B8461A; --accent-soft:#FDE7DC;
+  --calm:#3A6FA0; --calm-soft:#DFEAF5; --ok:#2B8A55; --ok-soft:#DDF3E6; --bad:#C8413B; --bad-soft:#FBE1DF; --gold:#E0A100;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151C; --surface:#1A202A; --ink:#EEF1F6; --muted:#9BA6B6; --line:#2B3340;
+  --accent:#FF8248; --accent-deep:#C45A26; --accent-soft:#3A2419;
+  --calm:#86B6E0; --calm-soft:#1C2B3A; --ok:#5DC68C; --ok-soft:#173224; --bad:#F07A73; --bad-soft:#3A1D1C; --gold:#F2C14E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151C; --surface:#1A202A; --ink:#EEF1F6; --muted:#9BA6B6; --line:#2B3340;
+  --accent:#FF8248; --accent-deep:#C45A26; --accent-soft:#3A2419;
+  --calm:#86B6E0; --calm-soft:#1C2B3A; --ok:#5DC68C; --ok-soft:#173224; --bad:#F07A73; --bad-soft:#3A1D1C; --gold:#F2C14E; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}
+.wrap{max-width:520px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;cursor:pointer;border:none;color:inherit;background:none}
+button:focus-visible{outline:3px solid var(--calm);outline-offset:2px}
+button:disabled{cursor:default}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+.label{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.note{font-size:14px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px}
+
+/* barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:12px}
+.brand{font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+.stats{display:flex;gap:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.stats span{display:flex;align-items:center;gap:4px}
+.view{padding-block:20px 110px;display:flex;flex-direction:column;gap:22px}
+
+/* camino */
+.unit{border-radius:18px;padding:16px 18px;color:#fff;display:flex;flex-direction:column;gap:4px}
+.unit h2{font-size:22px}
+.unit p{margin:0;opacity:.92;font-size:15px}
+.unit.locked{background:var(--line);color:var(--muted)}
+.prem{align-self:flex-start;font-size:12px;font-weight:700;background:var(--accent);color:#fff;border-radius:999px;padding:2px 10px;margin-top:4px}
+.nodes{display:flex;flex-direction:column;align-items:center;gap:18px}
+.node{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}
+.node .btn{width:76px;height:70px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-family:var(--display);font-weight:800;box-shadow:0 7px 0 var(--accent-deep);background:var(--accent);color:#fff;transition:transform .1s}
+.node .btn:active{transform:translateY(5px);box-shadow:0 2px 0 var(--accent-deep)}
+.node.done .btn{background:var(--gold);box-shadow:0 7px 0 #A87800}
+.node.locked .btn{background:var(--line);box-shadow:0 7px 0 var(--muted);color:var(--muted)}
+.node .name{font-size:14px;font-weight:700;text-align:center;max-width:160px}
+.node.locked .name{color:var(--muted);font-weight:400}
+.bubble{position:absolute;top:-44px;background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:4px 12px;font-weight:700;color:var(--accent);white-space:nowrap;animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.mascot-row{display:flex;align-items:flex-end;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px}
+.mascot-row p{margin:0;font-size:15px;min-width:0}
+.chispa{flex:none;width:64px;height:64px}
+.disclaimer{font-size:12px;color:var(--muted);text-align:center;margin:0}
+
+/* hacer */
+textarea{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%;box-sizing:border-box;resize:none}
+textarea:focus{outline:none;border-color:var(--calm)}
+.examples{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:var(--bg);border:1px solid var(--line);font-size:14px;padding:6px 12px;border-radius:999px}
+.primary{width:100%;border-radius:14px;padding:15px;font-weight:700;font-size:18px;background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-deep)}
+.primary:disabled{background:var(--line);color:var(--muted);box-shadow:none}
+.ghost{border-radius:14px;padding:14px;font-weight:700;border:1.5px solid var(--line)}
+.stuck{border-radius:14px;padding:14px;font-weight:700;background:var(--calm-soft);color:var(--calm);width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;width:100%}
+.row>*{flex:1 1 140px}
+.focus{align-items:center;text-align:center;padding:24px 18px}
+.step-text{font-family:var(--display);font-weight:600;font-size:26px;line-height:1.2;text-wrap:balance;min-width:0}
+.ring{position:relative;width:200px;height:200px;max-width:100%}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .track{stroke:var(--line);fill:none}
+.ring .rbar{stroke:var(--accent);fill:none;stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.ring .time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:44px;font-variant-numeric:tabular-nums}
+.ring .time small{font-family:var(--body);font-size:13px;font-weight:400;color:var(--muted)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;width:100%;text-align:left}
+.steps li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:10px;font-size:15px}
+.steps li .dot{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700;margin-top:1px}
+.steps li.done{color:var(--muted);text-decoration:line-through}
+.steps li.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.steps li.now{background:var(--accent-soft)}
+.steps li.now .dot{border-color:var(--accent);color:var(--accent)}
+.cheer{font-family:var(--display);font-weight:800;font-size:30px;color:var(--ok)}
+.resume{background:var(--calm-soft);border-color:var(--calm)}
+.resume b{font-family:var(--display);font-size:20px}
+.now{border:2px solid var(--accent)}
+.why{margin:0;font-size:15px;color:var(--muted)}
+.picklist{display:flex;flex-direction:column;gap:6px}
+.picklist button{text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:flex;justify-content:space-between;gap:10px}
+.picklist .tag{font-size:13px;color:var(--muted);flex:none}
+.helped{color:var(--ok);font-weight:700}
+
+/* progreso */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
+.day{display:flex;flex-direction:column;gap:4px;align-items:center;font-size:12px;color:var(--muted)}
+.day i{width:32px;height:32px;max-width:100%;border-radius:10px;background:var(--bg);border:1px solid var(--line);display:block}
+.day.on i{background:var(--accent);border-color:var(--accent)}
+.day.rest i{background:var(--calm-soft);border-color:var(--calm)}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat b{font-family:var(--display);font-size:28px;display:block;font-variant-numeric:tabular-nums}
+.premium{border:1.5px dashed var(--accent);background:var(--accent-soft)}
+.premium b{color:var(--accent)}
+
+/* pestañas */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav .tabs{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr)}
+nav button{color:var(--muted);padding:10px 4px 12px;font-size:14px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2}
+nav button[aria-selected="true"]{color:var(--accent)}
+
+/* lección */
+.lesson{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.lhead .wrap{display:flex;align-items:center;gap:12px;padding-block:14px}
+.close{font-size:26px;color:var(--muted);line-height:1;padding:4px}
+.bar{flex:1;height:14px;border-radius:999px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);border-radius:999px;transition:width .3s}
+.hearts{font-weight:700;color:var(--bad);font-variant-numeric:tabular-nums}
+.lbody{flex:1;overflow-y:auto}
+.lbody .wrap{padding-block:12px 24px;display:flex;flex-direction:column;gap:18px}
+.q{font-family:var(--display);font-weight:600;font-size:24px;line-height:1.25}
+.learn{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.learn p,.reto p{margin:0}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{text-align:left;background:var(--surface);border:2px solid var(--line);border-bottom-width:4px;border-radius:14px;padding:14px 16px;font-size:17px}
+.opt.sel{border-color:var(--calm);background:var(--calm-soft)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.tf{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tf .opt{text-align:center;font-weight:700}
+.answer{min-height:64px;border-bottom:2px solid var(--line);display:flex;flex-direction:column;gap:8px;padding-bottom:10px}
+.pool{display:flex;flex-direction:column;gap:8px}
+.tile{background:var(--surface);border:2px solid var(--line);border-bottom-width:4px;border-radius:12px;padding:10px 14px;text-align:left;font-size:16px}
+.tile.used{visibility:hidden}
+.answer .tile{border-color:var(--calm)}
+.reto{background:var(--accent-soft);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.center{display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center;padding-top:20px}
+.big{font-family:var(--display);font-weight:800;font-size:34px}
+.xpgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+.xpgrid div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:2px}
+.xpgrid b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
+.xpgrid span{font-size:13px;color:var(--muted)}
+.lfoot{border-top:1px solid var(--line);background:var(--surface);padding-bottom:env(safe-area-inset-bottom,0px)}
+.lfoot.ok{background:var(--ok-soft);border-color:var(--ok)}
+.lfoot.bad{background:var(--bad-soft);border-color:var(--bad)}
+.lfoot .wrap{padding-block:14px;display:flex;flex-direction:column;gap:10px}
+.fb{display:none;flex-direction:column;gap:2px}
+.lfoot.ok .fb,.lfoot.bad .fb{display:flex}
+.fb b{font-family:var(--display);font-size:20px}
+.lfoot.ok .fb b{color:var(--ok)}
+.lfoot.bad .fb b{color:var(--bad)}
+.fb span{font-size:15px}
+.cta{text-transform:uppercase;letter-spacing:.04em}
+.lfoot.ok .cta{background:var(--ok);box-shadow:0 4px 0 #1C6640}
+.lfoot.bad .cta{background:var(--bad);box-shadow:0 4px 0 #8E2A25}
+@media (prefers-reduced-motion: reduce){.bubble{animation:none}.bar i,.node .btn,.ring .rbar{transition:none}}
+</style>
+</head>
+<body>
+
+
+<div class="top"><div class="wrap">
+  <div class="brand">Arran<span>ca</span></div>
+  <div class="stats" aria-label="Tu progreso">
+    <span title="Racha">🔥 <b id="sStreak">0</b></span>
+    <span title="Experiencia">⭐ <b id="sXp">0</b></span>
+  </div>
+</div></div>
+
+<!-- APRENDER -->
+<main class="wrap view" id="view-aprender" hidden></main>
+
+<!-- HOY -->
+<section class="wrap view" id="view-hacer">
+  <div class="card resume" id="resumeCard" hidden>
+    <span class="label">Retoma donde te quedaste</span>
+    <b id="resumeTitle"></b>
+    <span class="note" id="resumeStep"></span>
+    <button class="primary" id="resumeBtn">Retomar</button>
+  </div>
+
+  <div class="card now" id="nowCard" hidden>
+    <span class="label">Ahora, solo esto</span>
+    <div class="step-text" id="nowText"></div>
+    <p class="why" id="nowWhy"></p>
+    <button class="primary" id="nowStart">Empezar esta</button>
+    <div class="row">
+      <button class="ghost" id="nowOther">Sugiéreme otra</button>
+      <button class="ghost" id="nowPick">Elijo yo</button>
+    </div>
+    <div class="picklist" id="pickList" hidden></div>
+    <span class="note" id="quota"></span>
+  </div>
+
+  <div class="card" id="dumpCard">
+    <span class="label">Saca todo de tu cabeza</span>
+    <span class="note">Escribe todo lo que te preocupa, uno por línea. No tienes que ordenarlo ni priorizarlo.</span>
+    <textarea id="taskInput" rows="3" placeholder="Pagar la luz&#10;Contestar a mi jefa&#10;Lavar ropa"></textarea>
+    <button class="primary" id="dumpBtn">Guardar en mi lista</button>
+    <span class="note" id="inboxCount"></span>
+  </div>
+  <div class="card focus" id="focusCard" hidden>
+    <span class="note" id="taskTitle"></span>
+    <span class="label" id="stepLabel"></span>
+    <div class="step-text" id="stepText"></div>
+    <div class="ring">
+      <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52" stroke-width="10"/><circle class="rbar" id="ringBar" cx="60" cy="60" r="52" stroke-width="10"/></svg>
+      <div class="time"><span id="timeText">2:00</span><small id="timeHint">listo para empezar</small></div>
+    </div>
+    <div class="row">
+      <button class="primary" id="playBtn">Empezar</button>
+      <button class="ghost" id="doneBtn">Hecho ✓</button>
+    </div>
+    <button class="stuck" id="stuckBtn">No puedo empezar</button>
+    <span class="note" id="stuckNote" hidden></span>
+    <ul class="steps" id="stepList"></ul>
+    <button class="ghost" id="dropBtn" style="width:100%;font-weight:400;font-size:15px">Pausar y volver después</button>
+  </div>
+  <div class="card focus" id="doneCard" hidden>
+    <div class="cheer">¡Lo hiciste!</div>
+    <p style="margin:0" id="doneText"></p>
+    <div id="helpAsk" style="display:flex;flex-direction:column;gap:8px;width:100%">
+      <span class="label">¿Arranca te ayudó con esta tarea?</span>
+      <div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>
+    </div>
+    <button class="primary" id="againBtn">Siguiente</button>
+  </div>
+</section>
+
+<!-- PROGRESO -->
+<section class="wrap view" id="view-progreso" hidden>
+  <h2>Tu progreso</h2>
+  <div class="card">
+    <span class="label">Esta semana</span>
+    <div class="week" id="week"></div>
+    <p class="note" style="margin:0">Tienes <b id="restLeft">2</b> días de descanso por semana. Usarlos no rompe tu racha.</p>
+    <button class="ghost" id="restBtn">Hoy me tomo el día</button>
+  </div>
+  <div class="statgrid">
+    <div class="stat"><b id="stStarted">0</b>tareas iniciadas</div>
+    <div class="stat"><b id="stTasks">0</b>tareas terminadas</div>
+    <div class="stat"><b id="stSteps">0</b>pasos mini</div>
+    <div class="stat"><b id="stLessons">0</b>lecciones completas</div>
+  </div>
+  <p class="note" style="margin:0" id="stHelp"></p>
+  <div class="card premium">
+    <b>Arranca Premium · $79 MXN/mes</b>
+    <span>Todas las unidades, tareas ilimitadas y recordatorios suaves.</span>
+    <span class="note">Prototipo: el pago aún no está conectado.</span>
+  </div>
+  <p class="disclaimer">Arranca ofrece psicoeducación y estrategias. No sustituye diagnóstico ni tratamiento profesional.</p>
+</section>
+
+<nav><div class="tabs" role="tablist">
+  <button role="tab" data-view="hacer" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hoy</button>
+  <button role="tab" data-view="aprender" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-7a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h7z"/></svg>Aprender</button>
+  <button role="tab" data-view="progreso" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progreso</button>
+</div></nav>
+
+<section class="lesson" id="lesson" hidden>
+  <div class="lhead"><div class="wrap">
+    <button class="close" id="closeBtn" aria-label="Salir de la lección">✕</button>
+    <div class="bar"><i id="barFill"></i></div>
+    <span class="hearts">❤ <span id="lHearts">5</span></span>
+  </div></div>
+  <div class="lbody"><div class="wrap" id="stage"></div></div>
+  <div class="lfoot" id="foot"><div class="wrap">
+    <div class="fb"><b id="fbTitle"></b><span id="fbText"></span></div>
+    <button class="primary cta" id="cta">Comprobar</button>
+  </div></div>
+</section>
+
+<script>
+// ---------- Mascota original: Chispa, una luciérnaga ----------
+const CHISPA=`<svg class="chispa" viewBox="0 0 64 64" aria-hidden="true">
+ <ellipse cx="20" cy="22" rx="11" ry="7" fill="var(--calm-soft)" stroke="var(--calm)" stroke-width="1.5" transform="rotate(-25 20 22)"/>
+ <ellipse cx="44" cy="22" rx="11" ry="7" fill="var(--calm-soft)" stroke="var(--calm)" stroke-width="1.5" transform="rotate(25 44 22)"/>
+ <circle cx="32" cy="48" r="11" fill="var(--gold)"/><circle cx="32" cy="48" r="15" fill="var(--gold)" opacity=".25"/>
+ <circle cx="32" cy="30" r="13" fill="var(--accent)"/>
+ <circle cx="27" cy="28" r="3.2" fill="#fff"/><circle cx="37" cy="28" r="3.2" fill="#fff"/>
+ <circle cx="27.6" cy="28.6" r="1.6" fill="#19202C"/><circle cx="37.6" cy="28.6" r="1.6" fill="#19202C"/>
+ <path d="M27 35 q5 4 10 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+ <path d="M28 18 q-3 -8 -7 -9 M36 18 q3 -8 7 -9" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+// ---------- Contenido ----------
+const UNITS=[
+ {t:"Entiende tu TDAH",d:"Qué pasa en tu cerebro y por qué no es flojera",c:"var(--accent)",lessons:[
+  {t:"¿Qué es el TDAH?",icon:"🧠",
+   learn:["El TDAH es una condición del neurodesarrollo. Afecta cómo el cerebro regula la atención, la actividad y los impulsos.","No desaparece al crecer en muchos casos: más de la mitad de quienes lo tienen de niños siguen con síntomas en la adultez.","Hay tres presentaciones: predominantemente inatenta, predominantemente hiperactiva-impulsiva y combinada."],
+   ex:[
+    {type:"tf",q:"El TDAH es causado por falta de disciplina o mala crianza.",a:false,why:"Es una condición del neurodesarrollo con fuerte base genética. La crianza no lo causa, aunque el entorno sí influye en cómo se vive."},
+    {type:"mc",q:"¿Cuál de estas NO es una presentación del TDAH?",opts:["Predominantemente inatenta","Combinada","Predominantemente ansiosa","Predominantemente hiperactiva-impulsiva"],a:2,why:"La ansiedad puede acompañar al TDAH, pero no es una de sus presentaciones."},
+    {type:"tf",q:"Un adulto puede tener TDAH aunque nunca lo hayan diagnosticado de niño.",a:true,why:"Muchas personas, sobre todo mujeres, reciben el diagnóstico en la adultez."},
+    {type:"mc",q:"Laura se distrae fácil pero no es inquieta. ¿Qué presentación podría describirla mejor?",opts:["Hiperactiva-impulsiva","Inatenta","Ninguna, entonces no es TDAH"],a:1,why:"La presentación inatenta no siempre se ve: por eso pasa desapercibida tantas veces."}
+   ],reto:"Escribe en una nota 3 cosas de tu día a día que ahora entiendes mejor gracias a esta lección."},
+  {t:"Funciones ejecutivas",icon:"🎛️",
+   learn:["Las funciones ejecutivas son como el panel de control del cerebro: planear, empezar, recordar instrucciones, frenar impulsos y cambiar de tarea.","En el TDAH estas funciones trabajan distinto. Por eso puedes saber qué hacer y aun así no lograr hacerlo.","No es un problema de saber. Es un problema de hacer en el momento justo."],
+   ex:[
+    {type:"mc",q:"¿Qué función ejecutiva te ayuda a recordar un número mientras lo marcas?",opts:["Memoria de trabajo","Flexibilidad","Motivación"],a:0,why:"La memoria de trabajo sostiene información por unos segundos mientras la usas."},
+    {type:"tf",q:"Si sabes lo que tienes que hacer pero no lo haces, significa que no te importa.",a:false,why:"Saber y hacer usan procesos distintos. Con TDAH, el paso de la intención a la acción es el que cuesta."},
+    {type:"order",q:"Ordena los pasos para que el panel de control funcione mejor al empezar una tarea:",items:["Decidir qué tarea sigue","Partirla en un paso pequeño","Poner un temporizador","Empezar el primer paso"],why:"Decidir, reducir, ver el tiempo y arrancar: así ayudas por fuera a lo que cuesta por dentro."},
+    {type:"mc",q:"Dejas la comida en la estufa porque te pusiste a hacer otra cosa. ¿Qué función falló?",opts:["Inhibición y memoria de trabajo","La vista","La fuerza de voluntad"],a:0,why:"Te ganó el estímulo nuevo y la tarea anterior salió de tu memoria de trabajo."}
+   ],reto:"Ve a la pestaña Hoy, escribe una tarea que siempre postergas y empieza su primer paso mini.",tool:true},
+  {t:"Interés y motivación",icon:"⚡",
+   learn:["En el TDAH la motivación depende mucho del interés, la novedad, el reto o la urgencia. Lo importante pero aburrido cuesta mucho más.","Esto se relaciona con cómo el cerebro procesa la dopamina, el mensajero químico de la recompensa.","El hiperfoco es el otro lado: cuando algo te atrapa, puedes concentrarte por horas."],
+   ex:[
+    {type:"mc",q:"¿Cuál de estos suele activar más a un cerebro con TDAH?",opts:["Una tarea importante pero aburrida","Algo nuevo o con fecha límite cercana","Una tarea larga sin recompensa"],a:1,why:"Novedad, urgencia, interés y reto son los encendedores principales."},
+    {type:"tf",q:"Si puedes concentrarte horas en un videojuego, no puedes tener TDAH.",a:false,why:"Eso es hiperfoco. El TDAH no es falta de atención, es dificultad para dirigirla a voluntad."},
+    {type:"mc",q:"Tienes que hacer tu declaración de impuestos. ¿Qué estrategia usa mejor tu forma de motivarte?",opts:["Esperar a tener ganas","Ponerle un reto: terminar antes de que acabe un álbum","Hacerlo todo de golpe el último día"],a:1,why:"Convertirla en reto con tiempo visible le da al cerebro el empujón que necesita."},
+    {type:"order",q:"Arma la receta para volver interesante una tarea aburrida:",items:["Elige la tarea","Agrégale un reto o un tiempo límite","Decide un premio pequeño","Empieza y cobra tu premio"],why:"Reto más recompensa inmediata: dos ingredientes que tu cerebro sí escucha."}
+   ],reto:"Elige una tarea aburrida de hoy y conviértela en reto con el temporizador de la pestaña Hoy y un premio.",tool:true},
+  {t:"Ceguera temporal",icon:"⏳",
+   learn:["Con TDAH el tiempo suele sentirse como \"ahora\" o \"no ahora\". Lo que no es ahora se siente lejano, aunque sea mañana.","Por eso cuesta calcular cuánto tardas, llegar puntual o empezar con anticipación.","La clave es ver el tiempo por fuera: relojes, temporizadores y alarmas, en lugar de intentar sentirlo."],
+   ex:[
+    {type:"tf",q:"La ceguera temporal se arregla esforzándote más en calcular el tiempo mentalmente.",a:false,why:"Funciona mejor sacar el tiempo afuera: un temporizador visible hace el trabajo por ti."},
+    {type:"mc",q:"Siempre llegas tarde al trabajo. ¿Qué ayuda más?",opts:["Prometerte que mañana sí","Poner alarmas para salir, no para llegar","Dormir menos para tener más tiempo"],a:1,why:"La alarma de salida convierte un \"después\" en un \"ahora\" concreto."},
+    {type:"mc",q:"¿Qué frase describe mejor la ceguera temporal?",opts:["No me importa el tiempo","Para mí solo existe ahora o no ahora","Soy lento para todo"],a:1,why:"Es una forma distinta de percibir el tiempo, no falta de interés."},
+    {type:"tf",q:"Anotar cuánto tardas de verdad en tus tareas te ayuda a calcular mejor.",a:true,why:"Tus datos reales le ganan a tu estimación. Con el tiempo, planeas con números reales."}
+   ],reto:"Cronometra hoy una tarea cotidiana (bañarte, preparar comida) y anota cuánto tardaste en realidad."},
+  {t:"Emociones intensas",icon:"🌊",
+   learn:["Muchas personas con TDAH sienten las emociones con más intensidad y les cuesta más regularlas. Se le llama desregulación emocional.","La frustración puede subir rápido y la crítica puede doler mucho.","No eres exagerado. Tu cerebro procesa la emoción con menos freno, y eso se puede entrenar."],
+   ex:[
+    {type:"tf",q:"Sentir emociones intensas es una señal de debilidad.",a:false,why:"Es una característica frecuente del TDAH. Entenderla es el primer paso para regularla."},
+    {type:"order",q:"Ordena una forma de bajar una emoción intensa:",items:["Notar la emoción","Nombrarla: \"estoy frustrado\"","Respirar lento 3 veces","Decidir qué hacer después"],why:"Nombrar la emoción ya baja su intensidad; respirar le da tiempo a tu freno."},
+    {type:"mc",q:"Tu jefe te hace una corrección y sientes que todo salió mal. ¿Qué te ayuda más?",opts:["Renunciar ese mismo día","Recordar que es una corrección de una tarea, no de ti","Fingir que no te importa"],a:1,why:"Separar la tarea de tu valor personal reduce el golpe emocional."},
+    {type:"tf",q:"Nombrar lo que sientes puede ayudarte a calmarte.",a:true,why:"Ponerle nombre a la emoción ayuda al cerebro a regularla."}
+   ],reto:"La próxima vez que sientas una emoción fuerte, nómbrala en voz baja antes de reaccionar."}
+ ]},
+ {t:"Domina el tiempo",d:"Llega a tiempo y calcula mejor",lessons:[{t:"Alarmas de salida"},{t:"Tu tiempo real"},{t:"Bloques de tiempo"}]},
+ {t:"Empieza tareas",d:"Rompe la parálisis",lessons:[{t:"La regla de los 2 minutos"},{t:"Body doubling"},{t:"Suficientemente bien"}]},
+ {t:"Organiza tu entorno",d:"Menos fricción, más acción",lessons:[{t:"Quita fricción"},{t:"Ancla tus hábitos"},{t:"Descansos que sí descansan"}]}
+];
+const MAX_HEARTS=5, XP_LESSON=10, XP_STEP=2, XP_TASK=10, FREE_TASKS=3, RESTS=2;
+const EXAMPLES=["Lavar los trastes","Contestar correos","Estudiar para el examen","Pagar los recibos"];
+
+// ---------- Estado (solo en este dispositivo) ----------
+const KEY="arranca-v4";
+const dk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const today=()=>dk(new Date());
+let S={done:[],xp:0,days:{},tasksDone:0,tasksStarted:0,stepsDone:0,tasksToday:{},inbox:[],activeId:null,helped:{yes:0,no:0},seeded:false};
+try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let nextId=1+Math.max(0,...S.inbox.map(x=>x.id));
+const newItem=t=>({id:nextId++,t,steps:null,idx:0,status:"open",started:false,added:Date.now(),touched:0});
+// Ejemplos para que la app no abra vacía
+if(!S.seeded){S.seeded=true;
+  const a=newItem("Lavar los trastes (ejemplo)");a.started=true;a.idx=1;a.touched=Date.now();a.steps=[
+    {s:"Pon una canción que te guste",m:2},{s:"Junta todos los platos en el fregadero",m:3},
+    {s:"Lava solo los vasos",m:3},{s:"Lava platos y cubiertos",m:5},{s:"Limpia la tarja y listo",m:2}];
+  S.inbox=[a,newItem("Contestar el correo de mi jefa (ejemplo)"),newItem("Pagar el recibo de luz (ejemplo)"),newItem("Agendar cita con el dentista (ejemplo)")];save()}
+function markActive(){if(S.days[today()]!=="on"){S.days[today()]="on";save()}}
+
+// Racha flexible: los días de descanso cuentan como pausa, no como corte
+function streak(){let n=0;const d=new Date();if(!S.days[today()])d.setDate(d.getDate()-1);
+  for(let i=0;i<800;i++){const v=S.days[dk(d)];if(v==="on")n++;else if(v!=="rest")break;d.setDate(d.getDate()-1)}return n}
+function weekDates(){const d=new Date();d.setDate(d.getDate()-(d.getDay()+6)%7);return [...Array(7)].map((_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x})}
+const restsUsed=()=>weekDates().filter(x=>S.days[dk(x)]==="rest").length;
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function addXp(n){S.xp+=n;save();$("sXp").textContent=S.xp}
+
+// ---------- Pestañas ----------
+function go(v){document.querySelectorAll("nav [data-view]").forEach(x=>x.setAttribute("aria-selected",x.dataset.view===v));
+  ["hacer","aprender","progreso"].forEach(x=>$("view-"+x).hidden=x!==v);window.scrollTo(0,0);renderAll()}
+document.querySelectorAll("nav [data-view]").forEach(b=>b.onclick=()=>go(b.dataset.view));
+
+// ---------- Camino ----------
+function renderPath(){
+  const u1=UNITS[0].lessons;const next=u1.findIndex((_,i)=>!S.done.includes(i));
+  const msg=next===-1?"¡Terminaste la Unidad 1! Las siguientes unidades son parte de Premium.":S.done.length?"¡Vas muy bien! Sigue con la siguiente lección.":"¡Hola! Soy Chispa. Te acompaño a entender tu cerebro, un paso pequeño a la vez.";
+  let h=`<div class="mascot-row">${CHISPA}<p>${msg}</p></div>`;
+  const offsets=[0,60,90,60,0,-60,-90,-60];
+  UNITS.forEach((U,ui)=>{
+    const locked=ui>0;
+    h+=`<div class="unit ${locked?"locked":""}" style="${locked?"":"background:"+U.c}"><span class="label" style="color:inherit;opacity:.85">Unidad ${ui+1}</span><h2>${U.t}</h2><p>${U.d}</p>${locked?'<span class="prem">Premium</span>':""}</div><div class="nodes">`;
+    U.lessons.forEach((L,li)=>{
+      const st=locked?"locked":S.done.includes(li)?"done":li===next?"current":"locked";
+      const ic=st==="done"?"✓":st==="locked"?"🔒":L.icon;
+      h+=`<div class="node ${st}" style="transform:translateX(${offsets[li%8]}px)">${st==="current"?'<span class="bubble">Empezar</span>':""}<button class="btn" ${st==="locked"?"disabled":`data-l="${li}"`} aria-label="${esc(L.t)}">${ic}</button><span class="name">${esc(L.t)}</span></div>`;
+    });
+    h+=`</div>`;
+  });
+  h+=`<p class="disclaimer">Arranca ofrece psicoeducación. No sustituye diagnóstico ni tratamiento profesional.</p>`;
+  $("view-aprender").innerHTML=h;
+  $("view-aprender").querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>startLesson(+b.dataset.l));
+}
+
+// ---------- Lección ----------
+let L,queue,step,total,hearts,sel,phase,correctCount,orderAns;
+function startLesson(i){
+  L=Object.assign({i},UNITS[0].lessons[i]);
+  queue=[{type:"learn"},...L.ex.map(e=>({...e}))];
+  total=queue.length;step=0;hearts=MAX_HEARTS;correctCount=0;
+  $("lesson").hidden=false;document.body.style.overflow="hidden";show();
+}
+function setFoot(state,title,text,label,enabled=true){
+  $("foot").className="lfoot"+(state?" "+state:"");$("fbTitle").textContent=title||"";$("fbText").textContent=text||"";
+  $("cta").textContent=label;$("cta").disabled=!enabled;
+}
+function progress(){$("barFill").style.width=Math.min(100,step/total*100)+"%";$("lHearts").textContent=hearts}
+function show(){
+  progress();sel=null;phase="answer";const q=queue[0];const st=$("stage");
+  if(!q)return showReto();
+  if(q.type==="learn"){
+    st.innerHTML=`<div class="mascot-row">${CHISPA}<p>Primero, lo esencial. Léelo con calma.</p></div><div class="learn"><span class="label">${esc(L.icon)} ${esc(L.t)}</span>${L.learn.map(p=>`<p>${esc(p)}</p>`).join("")}</div>`;
+    phase="learn";setFoot("","","","Entendido");return;
+  }
+  if(q.type==="mc"||q.type==="tf"){
+    const opts=q.type==="tf"?["Verdadero","Falso"]:q.opts;
+    st.innerHTML=`<span class="label">${q.type==="tf"?"¿Verdadero o falso?":"Elige la respuesta"}</span><div class="q">${esc(q.q)}</div><div class="${q.type==="tf"?"tf":"opts"}">${opts.map((o,k)=>`<button class="opt" data-k="${k}">${esc(o)}</button>`).join("")}</div>`;
+    st.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{if(phase!=="answer")return;st.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");sel=+b.dataset.k;$("cta").disabled=false});
+    setFoot("","","","Comprobar",false);return;
+  }
+  if(q.type==="order"){
+    orderAns=[];const sh=q.items.map((t,k)=>({t,k})).sort(()=>Math.random()-.5);
+    if(sh.every((x,i)=>x.k===i))sh.reverse();
+    st.innerHTML=`<span class="label">Ordena los pasos</span><div class="q">${esc(q.q)}</div><div class="answer" id="ans"></div><div class="pool" id="pool">${sh.map(x=>`<button class="tile" data-k="${x.k}">${esc(x.t)}</button>`).join("")}</div>`;
+    const draw=()=>{$("ans").innerHTML=orderAns.map(k=>`<button class="tile" data-k="${k}">${esc(q.items[k])}</button>`).join("");
+      $("ans").querySelectorAll(".tile").forEach(b=>b.onclick=()=>{if(phase!=="answer")return;orderAns=orderAns.filter(k=>k!==+b.dataset.k);draw()});
+      $("pool").querySelectorAll(".tile").forEach(b=>b.classList.toggle("used",orderAns.includes(+b.dataset.k)));
+      $("cta").disabled=orderAns.length!==q.items.length};
+    $("pool").querySelectorAll(".tile").forEach(b=>b.onclick=()=>{if(phase!=="answer"||orderAns.includes(+b.dataset.k))return;orderAns.push(+b.dataset.k);draw()});
+    setFoot("","","","Comprobar",false);return;
+  }
+}
+const PRAISE=["¡Excelente!","¡Bien hecho!","¡Eso es!","¡Correcto!"];
+const KIND=["Casi. Lo vas a ver de nuevo.","No pasa nada, así se aprende.","Ups, la volverás a ver al final."];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function check(){
+  const q=queue[0];let ok;
+  if(q.type==="mc")ok=sel===q.a;
+  if(q.type==="tf")ok=(sel===0)===q.a;
+  if(q.type==="order")ok=orderAns.every((k,i)=>k===i);
+  if(q.type!=="order"){const right=q.type==="tf"?(q.a?0:1):q.a;
+    $("stage").querySelectorAll(".opt").forEach(b=>{const k=+b.dataset.k;if(k===right)b.classList.add("right");else if(k===sel)b.classList.add("wrong")})}
+  phase="feedback";
+  if(ok){correctCount++;step++;queue.shift();setFoot("ok",pick(PRAISE),q.why,"Continuar")}
+  else{hearts--;queue.push(queue.shift());
+    const sol=q.type==="order"?"Orden: "+q.items.join(" → ")+". ":"";
+    setFoot("bad",pick(KIND),sol+q.why,hearts>0?"Continuar":"Ver qué sigue")}
+  progress();
+}
+function showReto(){
+  phase="reto";$("barFill").style.width="100%";
+  $("stage").innerHTML=`<div class="mascot-row">${CHISPA}<p>Lo que aprendes se queda cuando lo usas. Aquí va tu reto.</p></div><div class="reto"><span class="label">Reto para la vida real</span><p><b>${esc(L.reto)}</b></p></div>`;
+  setFoot("","","","Acepto el reto");
+}
+function finish(){
+  const first=!S.done.includes(L.i);const gained=XP_LESSON+correctCount*2+(hearts===MAX_HEARTS?5:0);
+  if(first)S.done.push(L.i);markActive();addXp(gained);
+  phase="end";
+  $("stage").innerHTML=`<div class="center">${CHISPA.replace('class="chispa"','class="chispa" style="width:110px;height:110px"')}<div class="big">¡Lección completa!</div><p style="margin:0">${esc(L.t)}</p><div class="xpgrid"><div><b>+${gained}</b><span>XP</span></div><div><b>${streak()}</b><span>días de racha</span></div><div><b>${hearts}</b><span>vidas intactas</span></div></div>${hearts===MAX_HEARTS?'<p class="label" style="color:var(--ok)">Bono por lección perfecta +5 XP</p>':""}</div>`;
+  setFoot("","","",L.tool?"Ir a Hoy":"Continuar");
+}
+function outOfHearts(){
+  phase="nohearts";
+  $("stage").innerHTML=`<div class="center">${CHISPA}<div class="big">Tómate un respiro</div><p style="margin:0">Se acabaron las vidas de esta lección. Equivocarse es parte de aprender. Puedes intentarlo otra vez cuando quieras.</p></div>`;
+  setFoot("","","","Intentar de nuevo");
+}
+function closeLesson(){$("lesson").hidden=true;document.body.style.overflow="";renderAll()}
+$("cta").onclick=()=>{
+  if(phase==="learn"){step++;queue.shift();show();return}
+  if(phase==="answer"){check();return}
+  if(phase==="feedback"){if(hearts<=0)return outOfHearts();show();return}
+  if(phase==="reto")return finish();
+  if(phase==="end"){const t=L.tool;closeLesson();if(t)go("hacer");return}
+  if(phase==="nohearts")return startLesson(L.i);
+};
+$("closeBtn").onclick=closeLesson;
+
+// ---------- Hacer: IA (Claude) con respaldo local ----------
+const samplePromise=(window.claude?.use?claude.use("sample"):Promise.resolve(null)).catch(()=>null);
+let aiOff=false;
+async function askJSON(prompt){
+  const sample=await samplePromise;if(!sample||aiOff)return null;
+  try{return await sample.json(prompt,{modelTier:"quick"})}
+  catch(e){if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code))aiOff=true;return null}
+}
+const fallbackSteps=t=>[{s:"Junta lo que necesitas para: "+t,m:2},{s:"Haz solo la parte más fácil",m:3},{s:"Sigue 5 minutos más, sin juzgarte",m:5},{s:"Revisa lo que hiciste y ciérralo",m:3}];
+const openItems=()=>S.inbox.filter(x=>x.status==="open");
+const byId=id=>S.inbox.find(x=>x.id===id);
+const active=()=>S.activeId?byId(S.activeId):null;
+
+// 1. Saca todo de tu cabeza
+$("dumpBtn").onclick=()=>{
+  const lines=$("taskInput").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){$("taskInput").focus();return}
+  lines.forEach(t=>S.inbox.push(newItem(t)));$("taskInput").value="";
+  ranking=null;suggestPos=0;save();renderTask();rank();
+};
+
+// 2. Decide qué hacer ahora: una sola acción, con su porqué
+let ranking=null,suggestPos=0,ranking_busy=false;
+function heuristicRank(){
+  const o=openItems();
+  const started=o.filter(x=>x.started).sort((a,b)=>b.touched-a.touched).map(x=>({id:x.id,why:"Ya la empezaste: retomarla cuesta menos que arrancar otra."}));
+  const rest=o.filter(x=>!x.started).sort((a,b)=>a.added-b.added).map((x,i)=>({id:x.id,why:i===0?"Es la que llevas más tiempo cargando en la cabeza.":"Otra opción para empezar con algo concreto."}));
+  return [...started,...rest];
+}
+async function rank(){
+  const o=openItems();if(o.length<2||ranking_busy){ranking=heuristicRank();renderNow();return}
+  ranking=heuristicRank();renderNow();ranking_busy=true;
+  const res=await askJSON(`Ayudas a un adulto con TDAH a decidir qué hacer AHORA. Ordena estos pendientes del más conveniente para empezar ahora al menos conveniente, considerando urgencia, consecuencias de no hacerlo y qué tan fácil es arrancar. Las tareas marcadas [empezada] cuestan menos de retomar. Responde solo un arreglo JSON de objetos {"i": índice, "why": razón amable en español de México, máx 15 palabras}.\n\n${o.map((x,i)=>i+". "+x.t+(x.started?" [empezada]":"")).join("\n")}`);
+  ranking_busy=false;
+  if(Array.isArray(res)){const seen=new Set();const r=[];
+    res.forEach(x=>{const it=o[Number(x?.i)];if(it&&!seen.has(it.id)){seen.add(it.id);r.push({id:it.id,why:String(x.why||"")})}});
+    o.forEach(it=>{if(!seen.has(it.id))r.push({id:it.id,why:"Otra opción para empezar con algo concreto."})});
+    ranking=r;suggestPos=0;renderNow()}
+}
+function current(){if(!ranking)ranking=heuristicRank();ranking=ranking.filter(r=>byId(r.id)?.status==="open");const rid=resumable()?.id;const valid=ranking.filter(r=>r.id!==rid);if(!valid.length)return null;return valid[suggestPos%valid.length]}
+function renderNow(){
+  const c=current();$("nowCard").hidden=!c||!!active();
+  if(!c)return;const it=byId(c.id);
+  $("nowText").textContent=it.t;$("nowWhy").textContent=c.why;
+  $("nowStart").textContent=it.started?"Retomar esta":"Empezar esta";
+  $("nowOther").disabled=ranking.filter(r=>r.id!==resumable()?.id).length<2;
+  const used=S.tasksToday[today()]||0;$("quota").textContent=`${Math.max(0,FREE_TASKS-used)} de ${FREE_TASKS} tareas nuevas gratis hoy`;
+}
+$("nowOther").onclick=()=>{suggestPos++;$("pickList").hidden=true;renderNow()};
+$("nowPick").onclick=()=>{
+  const pl=$("pickList");if(!pl.hidden){pl.hidden=true;return}
+  pl.innerHTML=openItems().map(x=>`<button data-id="${x.id}"><span>${esc(x.t)}</span><span class="tag">${x.started?"empezada":""}</span></button>`).join("");
+  pl.querySelectorAll("button").forEach(b=>b.onclick=()=>{pl.hidden=true;startItem(+b.dataset.id)});pl.hidden=false;
+};
+$("nowStart").onclick=()=>{const c=current();if(c)startItem(c.id)};
+
+// 3. Te acompaña a empezar
+async function startItem(id){
+  const it=byId(id);if(!it)return;
+  if(!it.started){
+    const used=S.tasksToday[today()]||0;
+    if(used>=FREE_TASKS){$("quota").textContent="Llegaste a 3 tareas nuevas gratis hoy. Puedes retomar las que ya empezaste. Con Premium son ilimitadas.";return}
+    const b=$("nowStart");b.disabled=true;b.textContent="Preparando pasos mini…";
+    const res=await askJSON(`Eres un apoyo para adultos con TDAH. Divide esta tarea en 3 a 6 pasos muy pequeños, concretos y físicos, en español de México, tono amable. Cada paso debe durar entre 2 y 5 minutos y el primero debe ser ridículamente fácil. Responde solo un arreglo JSON de objetos {"s": texto del paso (máx 12 palabras), "m": minutos (2-5)}.\n\nTarea: ${it.t}`);
+    b.disabled=false;
+    let steps=Array.isArray(res)?res.filter(x=>x&&x.s).slice(0,6).map(x=>({s:String(x.s),m:Math.min(5,Math.max(2,Number(x.m)||3))})):null;
+    it.steps=steps&&steps.length?steps:fallbackSteps(it.t);
+    it.started=true;S.tasksStarted++;S.tasksToday[today()]=used+1;
+  }
+  it.touched=Date.now();S.activeId=id;$("pickList").hidden=true;save();resetTimer();renderTask();window.scrollTo(0,0);
+}
+async function stuck(){
+  const c=active();if(!c)return;const stp=c.steps[c.idx];
+  const b=$("stuckBtn");b.disabled=true;b.textContent="Buscando algo más fácil…";
+  const res=await askJSON(`Un adulto con TDAH no logra empezar este paso: "${stp.s}" (de la tarea "${c.t}"). Propón UN paso aún más pequeño que tome menos de 1 minuto, físico y concreto, y una frase breve y compasiva. Responde solo JSON {"s": paso (máx 10 palabras), "f": frase (máx 14 palabras)}.`);
+  const mini=res&&res.s?{s:String(res.s),f:String(res.f||"")}:{s:"Solo ponte de pie y acércate a donde harás esto",f:"Empezar pequeño también cuenta."};
+  c.steps.splice(c.idx,0,{s:mini.s,m:1});save();
+  $("stuckNote").textContent=mini.f;$("stuckNote").hidden=false;
+  b.disabled=false;b.textContent="No puedo empezar";resetTimer();renderTask();
+}
+// temporizador visual
+const C=2*Math.PI*52;let tot=120,left=120,tick=null;
+$("ringBar").style.strokeDasharray=C;
+const fmt=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+function drawRing(){$("ringBar").style.strokeDashoffset=tot?C*(1-left/tot):C;$("timeText").textContent=fmt(left)}
+function resetTimer(){clearInterval(tick);tick=null;const c=active();tot=left=((c&&c.steps[c.idx]?.m)||2)*60;
+  $("playBtn").textContent="Empezar";$("timeHint").textContent="listo para empezar";drawRing()}
+$("playBtn").onclick=()=>{
+  if(tot===0){tot=left=120;drawRing()}
+  if(tick){clearInterval(tick);tick=null;$("playBtn").textContent="Seguir";$("timeHint").textContent="en pausa";return}
+  markActive();$("sStreak").textContent=streak();$("playBtn").textContent="Pausa";$("timeHint").textContent="en marcha";
+  tick=setInterval(()=>{left--;drawRing();if(left<=0){clearInterval(tick);tick=null;tot=left=0;$("timeHint").textContent="¡tiempo! ¿lo terminaste?";$("playBtn").textContent="+2 min"}},1000);
+};
+let lastDone=null;
+$("doneBtn").onclick=()=>{
+  const c=active();if(!c)return;markActive();S.stepsDone++;addXp(XP_STEP);c.idx++;c.touched=Date.now();$("stuckNote").hidden=true;
+  if(c.idx>=c.steps.length){c.status="done";S.tasksDone++;addXp(XP_TASK);S.activeId=null;lastDone=c.id;
+    $("doneText").textContent=`Terminaste "${c.t}" en ${c.steps.length} pasos mini. +${XP_TASK} XP extra. Date tu premio.`;
+    $("helpAsk").hidden=false;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
+    save();clearInterval(tick);tick=null;renderTask(true);return}
+  save();resetTimer();renderTask();
+};
+// 4. Te ayuda a retomar: pausar nunca borra el avance
+$("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
+$("resumeBtn").onclick=()=>{const r=resumable();if(r)startItem(r.id)};
+function resumable(){return openItems().filter(x=>x.started).sort((a,b)=>b.touched-a.touched)[0]||null}
+function bindHelp(){$("helpAsk").querySelectorAll("[data-help]").forEach(b=>b.onclick=()=>{S.helped[b.dataset.help]++;save();
+  $("helpAsk").innerHTML=`<span class="helped">Gracias. Esto nos ayuda a mejorar Arranca.</span>`})}
+$("againBtn").onclick=()=>{ranking=null;suggestPos=0;renderTask();rank()};
+$("stuckBtn").onclick=stuck;
+
+function renderTask(celebrate){
+  const c=active();const showDone=!!celebrate;
+  $("doneCard").hidden=!showDone;$("focusCard").hidden=!c;
+  const idle=!c&&!showDone;
+  $("dumpCard").hidden=!idle;
+  const r=resumable();
+  $("resumeCard").hidden=!idle||!r;
+  if(r){$("resumeTitle").textContent=r.t;$("resumeStep").textContent=`Vas en el paso ${r.idx+1} de ${r.steps.length}. Tu avance sigue aquí.`}
+  if(idle)renderNow();else $("nowCard").hidden=true;
+  const n=openItems().length;$("inboxCount").textContent=n?`Tienes ${n} pendiente${n===1?"":"s"} en tu lista. Arranca te sugiere uno a la vez.`:"Tu lista está vacía.";
+  if(c){const st=c.steps[c.idx];$("taskTitle").textContent=c.t;$("stepLabel").textContent=`Paso ${c.idx+1} de ${c.steps.length}`;$("stepText").textContent=st.s;
+    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${i<c.idx?"done":i===c.idx?"now":""}"><span class="dot">${i<c.idx?"✓":i+1}</span><span>${esc(x.s)} <span class="note">· ${x.m} min</span></span></li>`).join("")}
+  $("sStreak").textContent=streak();
+}
+
+// ---------- Progreso ----------
+function renderProgress(){
+  const names=["L","M","M","J","V","S","D"];
+  $("week").innerHTML=weekDates().map((x,i)=>`<div class="day ${S.days[dk(x)]||""}"><i></i>${names[i]}</div>`).join("");
+  const rl=RESTS-restsUsed();$("restLeft").textContent=rl;$("restBtn").disabled=rl<=0||!!S.days[today()];
+  $("stLessons").textContent=S.done.length;$("stTasks").textContent=S.tasksDone;$("stSteps").textContent=S.stepsDone;$("stStarted").textContent=S.tasksStarted;const h=S.helped.yes+S.helped.no;$("stHelp").textContent=h?`Arranca te ayudó en ${S.helped.yes} de ${h} tareas terminadas.`:"Al terminar una tarea te preguntaremos si Arranca te ayudó.";
+}
+$("restBtn").onclick=()=>{if(RESTS-restsUsed()>0&&!S.days[today()]){S.days[today()]="rest";save();renderAll()}};
+
+function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp;renderPath();renderTask();renderProgress()}
+resetTimer();renderAll();rank();
+</script>
+
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
+</script>
+</body>
+</html>
