@@ -212,6 +212,8 @@ input[aria-invalid=true]{border-color:var(--bad)}
 </div></div>
 <div class="errbar" id="saveErr" role="alert" hidden>No pudimos guardar en este dispositivo. Tu avance de ahora sigue aquí, pero puede perderse si cierras. Libera espacio y vuelve a intentarlo.</div>
 
+<div class="errbar" id="loadErr" role="status" hidden>Algunos datos guardados no se pudieron leer. Guardamos una copia aparte y recuperamos lo que fue posible.</div>
+
 <!-- APRENDER -->
 <main class="wrap view" id="view-aprender" hidden></main>
 
@@ -497,14 +499,17 @@ const KEY="arranca-v5",OLD_KEY="arranca-v4"; // v4 se conserva intacto como resp
 const dk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const today=()=>dk(new Date());
 let S=ARRANCA_CORE.defaultState();
+let loadFailed=false;
 try{
-  const r=localStorage.getItem(KEY)||localStorage.getItem(OLD_KEY);
-  if(r){try{S=ARRANCA_CORE.migrate(JSON.parse(r))}catch(e){try{localStorage.setItem(KEY+"-corrupto",r)}catch(_){}}}
+  const tryLoad=k=>{const r=localStorage.getItem(k);if(!r)return null;
+    try{return ARRANCA_CORE.migrate(JSON.parse(r))}catch(e){loadFailed=true;try{localStorage.setItem(KEY+"-corrupto",r)}catch(_){}return null}};
+  S=tryLoad(KEY)||tryLoad(OLD_KEY)||S;
 }catch(e){}
 let saveFailed=false;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));if(saveFailed){saveFailed=false;document.getElementById("saveErr").hidden=true}}
   catch(e){saveFailed=true;document.getElementById("saveErr").hidden=false}};
 save();
+if(loadFailed)document.getElementById("loadErr").hidden=false;
 let nextId=1+Math.max(0,...S.inbox.map(x=>x.id));
 const newItem=(t,source="quick_capture")=>({id:nextId++,t,steps:null,idx:0,status:"open",started:false,added:Date.now(),touched:0,source});
 function markActive(){if(S.days[today()]!=="on"){S.days[today()]="on";save()}}
@@ -866,10 +871,10 @@ function renderPend(){
   if(!list.length){$("pendList").innerHTML=`<li class="note">${pendFilter==="prog"?"No tienes tareas en progreso ahora.":"No tienes pendientes. Cuando captures algo en Hoy, aparecerá aquí."}</li>`;return}
   $("pendList").innerHTML=list.map(x=>{
     const n=x.steps?x.steps.length:0,e=esc(x.t);
-    const st=x.started?`En progreso${n?` · paso ${Math.min(x.idx+1,n)} de ${n}`:""}`:"Pendiente";
+    const pr=ARRANCA_CORE.stepProgress(x),st=x.started?`En progreso${n?` · ${pr.done} de ${n} pasos completados`:""}`:"Pendiente";
     const head=editingId===x.id
       ?`<label class="sr" for="editInp">Editar título</label><input type="text" id="editInp" value="${e}"><div class="acts"><button class="go" data-a="save" data-id="${x.id}">Guardar</button><button data-a="cancel" data-id="${x.id}">Cancelar</button></div>`
-      :`<span class="tt">${e}</span><span class="note">${st}</span><div class="acts"><button class="go" data-a="open" data-id="${x.id}" aria-label="Abrir: ${e}">${x.started?"Retomar":"Empezar"}</button><button data-a="steps" data-id="${x.id}" aria-label="Dividir en pasos: ${e}">Pasos</button><button data-a="edit" data-id="${x.id}" aria-label="Editar título: ${e}">Editar</button><button data-a="archive" data-id="${x.id}" aria-label="Archivar: ${e}">Archivar</button><button data-a="del" data-id="${x.id}" aria-label="Eliminar: ${e}">Eliminar</button></div>`;
+      :`<span class="tt">${e}</span><span class="note">${st}</span><div class="acts"><button class="go" data-a="open" data-id="${x.id}" aria-label="Abrir: ${e}">${x.started?"Retomar":"Empezar"}</button><button data-a="steps" data-id="${x.id}" aria-label="Dividir en pasos: ${e}">Pasos</button><button data-a="edit" data-id="${x.id}" aria-label="Editar título: ${e}">Editar</button><button data-a="complete" data-id="${x.id}" aria-label="Marcar como terminada: ${e}">Terminar</button><button data-a="archive" data-id="${x.id}" aria-label="Archivar: ${e}">Archivar</button><button data-a="del" data-id="${x.id}" aria-label="Eliminar: ${e}">Eliminar</button></div>`;
     return `<li class="trow">${head}</li>`}).join("");
   const inp=$("editInp");if(inp){inp.focus();inp.onkeydown=ev=>{if(ev.key==="Enter")pendAct("save",editingId);if(ev.key==="Escape")pendAct("cancel",editingId)}}
 }
@@ -881,8 +886,10 @@ function pendAct(a,id){
   if(a==="cancel"){editingId=null;renderPend();return}
   if(a==="save"){const t=ARRANCA_CORE.cleanTitle($("editInp").value);if(!t){$("editInp").setAttribute("aria-invalid","true");return}
     it.t=t;editingId=null;save();ranking=null;renderPend();return}
+  if(a==="complete"){if(S.session&&S.session.taskId===id)closeSession(false);
+    if(S.activeId===id)S.activeId=null;ARRANCA_CORE.completeTask(it,Date.now());S.tasksDone++;ranking=null;suggestPos=0;save();renderAll();return}
   if(a==="archive"||a==="del"){
-    if(a==="del"&&it.steps&&it.steps.length&&!confirm("Esta tarea tiene pasos. ¿Eliminarla de forma permanente?"))return;
+    if(a==="del"&&((it.steps&&it.steps.length)||ARRANCA_CORE.hasSessions(S,id))&&!confirm("Esta tarea tiene pasos o bloques guardados. ¿Eliminarla de forma permanente?"))return;
     if(S.session&&S.session.taskId===id)closeSession(false);
     if(S.activeId===id){S.activeId=null;resetTimer()}
     if(a==="del")S.inbox=S.inbox.filter(x=>x.id!==id);else it.status="archived";
@@ -984,6 +991,8 @@ function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp
 })();
 $("welcomeSmall").onclick=()=>{S.lowDay=today();save();$("welcomeCard").hidden=true;renderTask()};
 $("welcomeClose").onclick=()=>{$("welcomeCard").hidden=true};
+window.addEventListener("storage",e=>{if(e.key!==KEY||!e.newValue)return;
+  try{S=ARRANCA_CORE.migrate(JSON.parse(e.newValue));nextId=1+Math.max(0,...S.inbox.map(x=>x.id));ranking=null;renderAll()}catch(_){}});
 resetTimer();renderAll();rank();
 </script>
 

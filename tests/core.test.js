@@ -150,3 +150,15 @@ test("migrate: sesión válida se conserva, inválida se descarta; sin texto de 
   assert.strictEqual(C.migrate({ timerMin: 7 }).timerMin, null);
   assert.deepStrictEqual(Object.keys(ok).sort(), ["durationSeconds","endedAt","endsAt","id","pausedAt","remainingSeconds","startedAt","status","stepId","taskId"]);
 });
+
+test("stepProgress, hasSessions y completeTask", () => {
+  const it = mk(); C.addStep(it, "A"); const b = C.addStep(it, "B"); C.toggleStep(it, b.id);
+  assert.deepStrictEqual(C.stepProgress(it), { done: 1, total: 2 });
+  assert.deepStrictEqual(C.stepProgress(mk()), { done: 0, total: 0 });
+  const S = C.defaultState(); S.sessions.push({ taskId: 1 });
+  assert.strictEqual(C.hasSessions(S, 1), true); assert.strictEqual(C.hasSessions(S, 2), false);
+  C.completeTask(it, 77);
+  assert.strictEqual(it.status, "done"); assert.strictEqual(it.completedAt, 77);
+  assert.ok(it.steps.every(x => x.d));
+  const bare = C.completeTask(mk(), 5); assert.strictEqual(bare.status, "done");
+});

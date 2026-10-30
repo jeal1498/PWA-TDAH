@@ -170,7 +170,17 @@
     return se;
   }
 
-  const api = { DURATIONS, sanitizeSession, remaining, startSession, syncSession, pauseSession, resumeSession, endSession, setDuration, SCHEMA, defaultState, cleanTitle, parseLines, migrate, sortPending, sortHistory,
+  // Pasos completados y total (para mostrar «2 de 5»).
+  const stepProgress = it => { const st = (it && it.steps) || []; return { done: st.filter(x => x.d).length, total: st.length }; };
+  // ¿La tarea tiene sesiones de enfoque guardadas (activa o archivadas)?
+  const hasSessions = (S, id) => [S.session].concat(S.sessions || []).some(x => x && x.taskId === id);
+  // Completa explícitamente una tarea (con o sin pasos) y la manda al historial.
+  function completeTask(it, now) {
+    (it.steps || []).forEach(st => { if (!st.d) { st.d = true; st.completedAt = now || Date.now(); } });
+    it.status = "done"; it.completedAt = now || Date.now(); nextIdx(it); return it;
+  }
+
+  const api = { stepProgress, hasSessions, completeTask, DURATIONS, sanitizeSession, remaining, startSession, syncSession, pauseSession, resumeSession, endSession, setDuration, SCHEMA, defaultState, cleanTitle, parseLines, migrate, sortPending, sortHistory,
     suggestSteps, validateStep, nextIdx, addStep, setSteps, renameStep, removeStep, moveStep, toggleStep, nextAction };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ARRANCA_CORE = api;
