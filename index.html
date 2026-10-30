@@ -74,7 +74,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* hacer */
 textarea{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%;box-sizing:border-box;resize:none}
-textarea:focus{outline:none;border-color:var(--calm)}
+textarea:focus,input[type=text]:focus{outline:3px solid var(--calm);outline-offset:2px;border-color:var(--calm)}
 .examples{display:flex;gap:8px;flex-wrap:wrap}
 .chip{background:var(--bg);border:1px solid var(--line);font-size:14px;padding:6px 12px;border-radius:999px}
 .primary{width:100%;border-radius:14px;padding:15px;font-weight:700;font-size:18px;background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-deep)}
@@ -111,7 +111,7 @@ textarea:focus{outline:none;border-color:var(--calm)}
 .welcome-row{display:flex;gap:12px;align-items:flex-end}
 .welcome-row p{margin:0;font-size:15px}
 .welcome-row b{font-family:var(--display);font-size:20px}
-.energy-btn{align-self:flex-start;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:15px;background:var(--surface)}
+.energy-btn{align-self:flex-start;min-height:44px;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:15px;background:var(--surface)}
 .energy-btn[aria-pressed="true"]{background:var(--calm-soft);border-color:var(--calm);color:var(--calm);font-weight:700}
 .lowmsg{margin:0;font-size:15px;color:var(--calm);font-weight:700}
 
@@ -178,6 +178,25 @@ nav button[aria-selected="true"]{color:var(--accent)}
 .cta{text-transform:uppercase;letter-spacing:.04em}
 .lfoot.ok .cta{background:var(--ok);box-shadow:0 4px 0 #1C6640}
 .lfoot.bad .cta{background:var(--bad);box-shadow:0 4px 0 #8E2A25}
+/* captura, pendientes e historial */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%;box-sizing:border-box;min-height:48px}
+
+input[aria-invalid=true]{border-color:var(--bad)}
+.capform{display:flex;flex-direction:column;gap:10px}
+.errbar{background:var(--bad-soft);border-bottom:1px solid var(--bad);padding:10px 16px;font-size:15px;text-align:center}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{border:1.5px solid var(--line);border-radius:999px;padding:8px 16px;min-height:44px;font-weight:700}
+.seg button[aria-pressed="true"]{background:var(--calm-soft);border-color:var(--calm);color:var(--calm)}
+.tlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.trow{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.trow .tt{font-weight:700;overflow-wrap:anywhere;min-width:0}
+.trow .acts{display:flex;gap:8px;flex-wrap:wrap}
+.trow .acts button{border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;min-height:44px;font-size:15px}
+.trow .acts button.go{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.inner{background:var(--ok-soft);border:1px solid var(--ok);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;width:100%;box-sizing:border-box;text-align:left}
+.trow.sdone input{text-decoration:line-through;color:var(--muted)}
+.step-text,.trow .tt,#nowText,#taskTitle{overflow-wrap:anywhere}
 @media (prefers-reduced-motion: reduce){.bubble{animation:none}.bar i,.node .btn,.ring .rbar{transition:none}}
 </style>
 </head>
@@ -186,11 +205,12 @@ nav button[aria-selected="true"]{color:var(--accent)}
 
 <div class="top"><div class="wrap">
   <div class="brand">Arran<span>ca</span></div>
-  <div class="stats" aria-label="Tu progreso">
+  <div class="stats" aria-label="Tu progreso" hidden>
     <span title="Racha">🔥 <b id="sStreak">0</b></span>
     <span title="Experiencia">⭐ <b id="sXp">0</b></span>
   </div>
 </div></div>
+<div class="errbar" id="saveErr" role="alert" hidden>No pudimos guardar en este dispositivo. Tu avance de ahora sigue aquí, pero puede perderse si cierras. Libera espacio y vuelve a intentarlo.</div>
 
 <!-- APRENDER -->
 <main class="wrap view" id="view-aprender" hidden></main>
@@ -203,6 +223,32 @@ nav button[aria-selected="true"]{color:var(--accent)}
     <button class="ghost" id="welcomeClose">Ver mi día</button>
   </div>
   <button class="energy-btn" id="energyBtn" aria-pressed="false">🔋 Hoy tengo poca energía</button>
+  <div class="card" id="captureCard">
+    <h2>¿Qué tienes en mente?</h2>
+    <form class="capform" id="capForm" novalidate>
+      <label class="sr" for="capInput">Nueva tarea</label>
+      <input type="text" id="capInput" placeholder="Escribe algo que necesitas hacer…" autocomplete="off" enterkeyhint="done" aria-describedby="capMsg">
+      <button class="primary" type="submit" id="capBtn">Agregar</button>
+    </form>
+    <span class="note" id="capMsg" role="status" aria-live="polite"></span>
+    <button class="ghost" id="dumpOpen">Vaciar mi cabeza</button>
+    <span class="note" id="inboxCount"></span>
+  </div>
+  <div class="card" id="dumpCard" hidden>
+    <h2>Saca todo de tu cabeza</h2>
+    <label class="note" for="taskInput">Escribe todo lo que te preocupa, uno por línea. No tienes que ordenarlo ni priorizarlo.</label>
+    <textarea id="taskInput" rows="4" placeholder="Pagar la luz&#10;Contestar a mi jefa&#10;Lavar ropa" aria-describedby="dumpMsg"></textarea>
+    <span class="note" id="dumpMsg" role="status" aria-live="polite"></span>
+    <button class="primary" id="dumpBtn">Guardar pendientes</button>
+    <button class="ghost" id="dumpCancel">Cancelar</button>
+  </div>
+  <div class="card resume" id="sessCard" hidden>
+    <span class="label">Tienes una sesión pausada</span>
+    <b>Puedes retomarla cuando quieras</b>
+    <span class="note" id="sessNote"></span>
+    <button class="primary" id="sessResume">Continuar</button>
+    <button class="ghost" id="sessLater">Dejar para después</button>
+  </div>
   <div class="card resume" id="resumeCard" hidden>
     <span class="label">Retoma donde te quedaste</span>
     <b id="resumeTitle"></b>
@@ -220,31 +266,42 @@ nav button[aria-selected="true"]{color:var(--accent)}
       <button class="ghost" id="nowPick">Elijo yo</button>
     </div>
     <div class="picklist" id="pickList" hidden></div>
-    <span class="note" id="quota"></span>
   </div>
 
-  <div class="card" id="dumpCard">
-    <span class="label">Saca todo de tu cabeza</span>
-    <span class="note">Escribe todo lo que te preocupa, uno por línea. No tienes que ordenarlo ni priorizarlo.</span>
-    <textarea id="taskInput" rows="3" placeholder="Pagar la luz&#10;Contestar a mi jefa&#10;Lavar ropa"></textarea>
-    <button class="primary" id="dumpBtn">Guardar en mi lista</button>
-    <span class="note" id="inboxCount"></span>
-  </div>
   <div class="card focus" id="focusCard" hidden>
     <span class="note" id="taskTitle"></span>
     <span class="label" id="stepLabel"></span>
     <div class="step-text" id="stepText"></div>
     <div class="ring">
       <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52" stroke-width="10"/><circle class="rbar" id="ringBar" cx="60" cy="60" r="52" stroke-width="10"/></svg>
-      <div class="time"><span id="timeText">2:00</span><small id="timeHint">listo para empezar</small></div>
+      <div class="time" role="timer" aria-label="Tiempo restante"><span id="timeText">5:00</span><small id="timeHint">listo para empezar</small></div>
     </div>
     <div class="row">
       <button class="primary" id="playBtn">Empezar</button>
       <button class="ghost" id="doneBtn">Hecho ✓</button>
     </div>
+    <div class="inner" id="blockEnd" hidden>
+      <b>Terminaste este bloque.</b><span>¿Qué quieres hacer ahora?</span>
+      <button class="ghost" id="blockAgain">Otro bloque</button>
+      <button class="ghost" id="blockDone">Marcar este paso como hecho</button>
+      <button class="ghost" id="blockLater">Seguir después</button>
+    </div>
+    <button class="ghost" id="endBtn" style="width:100%;font-weight:400;font-size:15px" hidden>Terminar bloque</button>
+    <div class="inner" id="endAsk" hidden style="background:var(--calm-soft);border-color:var(--calm)">
+      <b>¿Cómo registramos este bloque?</b>
+      <button class="ghost" id="endKeep">Cuenta como terminado</button>
+      <button class="ghost" id="endDrop">Descartarlo</button>
+      <button class="ghost" id="endCancel">Seguir con el bloque</button>
+    </div>
+    <button class="ghost" id="durBtn" style="width:100%;font-weight:400;font-size:15px">Cambiar duración</button>
+    <div class="seg" id="durSeg" role="group" aria-label="Duración del bloque" hidden>
+      <button data-min="2">2 min</button><button data-min="5">5 min</button><button data-min="10">10 min</button><button data-min="15">15 min</button>
+    </div>
+    <span class="sr" id="timerLive" role="status" aria-live="polite"></span>
     <button class="stuck" id="stuckBtn">No puedo empezar</button>
     <span class="note" id="stuckNote" hidden></span>
     <ul class="steps" id="stepList"></ul>
+    <button class="ghost" id="editStepsBtn" style="width:100%;font-weight:400;font-size:15px">Ver y editar pasos</button>
     <button class="ghost" id="dropBtn" style="width:100%;font-weight:400;font-size:15px">Pausar y volver después</button>
   </div>
   <div class="card focus" id="doneCard" hidden>
@@ -257,6 +314,51 @@ nav button[aria-selected="true"]{color:var(--accent)}
     <button class="primary" id="againBtn">Siguiente</button>
     <button class="ghost" id="oneMoreBtn" style="width:100%" hidden>Tengo para un paso más</button>
   </div>
+</section>
+
+<!-- DETALLE -->
+<section class="wrap view" id="view-detalle" hidden>
+  <button class="ghost" id="detBack">← Volver a pendientes</button>
+  <h2>Divide la tarea</h2>
+  <label class="sr" for="detTitle">Título de la tarea</label>
+  <input type="text" id="detTitle">
+  <div class="card now">
+    <span class="label">Siguiente acción</span>
+    <div class="step-text" id="detNextText"></div>
+  </div>
+  <span class="label" id="granLbl">Nivel de detalle</span>
+  <div class="seg" role="group" aria-labelledby="granLbl">
+    <button data-g="few" aria-pressed="false">Pocos pasos</button>
+    <button data-g="balanced" aria-pressed="true">Equilibrado</button>
+    <button data-g="detailed" aria-pressed="false">Muy detallado</button>
+  </div>
+  <span class="note">Son sugerencias editables, no inteligencia artificial. Cámbialas como quieras.</span>
+  <button class="ghost" id="detGen">Generar sugerencias de nuevo</button>
+  <ul class="tlist" id="detSteps"></ul>
+  <form class="capform" id="detAddForm" novalidate>
+    <label class="sr" for="detAdd">Nuevo paso</label>
+    <input type="text" id="detAdd" placeholder="Escribe un paso concreto…" autocomplete="off">
+    <button class="ghost" type="submit">Agregar paso</button>
+  </form>
+  <span class="note" id="detMsg" role="status" aria-live="polite"></span>
+  <button class="primary" id="detStart">Empezar</button>
+  <button class="ghost" id="detWhole">Empezar sin dividir</button>
+</section>
+
+<!-- PENDIENTES -->
+<section class="wrap view" id="view-pendientes" hidden>
+  <h2>Pendientes</h2>
+  <div class="seg" role="group" aria-label="Filtro">
+    <button id="fAll" aria-pressed="true">Todas</button>
+    <button id="fProg" aria-pressed="false">En progreso</button>
+  </div>
+  <ul class="tlist" id="pendList"></ul>
+</section>
+
+<!-- HISTORIAL -->
+<section class="wrap view" id="view-historial" hidden>
+  <h2>Historial</h2>
+  <ul class="tlist" id="histList"></ul>
 </section>
 
 <!-- PROGRESO -->
@@ -275,18 +377,13 @@ nav button[aria-selected="true"]{color:var(--accent)}
     <div class="stat"><b id="stLessons">0</b>lecciones completas</div>
   </div>
   <p class="note" style="margin:0" id="stHelp"></p>
-  <div class="card premium">
-    <b>Arranca Premium · $79 MXN/mes</b>
-    <span>Todas las unidades, tareas ilimitadas y recordatorios suaves.</span>
-    <span class="note">Prototipo: el pago aún no está conectado.</span>
-  </div>
   <p class="disclaimer">Arranca ofrece psicoeducación y estrategias. No sustituye diagnóstico ni tratamiento profesional.</p>
 </section>
 
 <nav><div class="tabs" role="tablist">
   <button role="tab" data-view="hacer" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hoy</button>
-  <button role="tab" data-view="aprender" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-7a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h7z"/></svg>Aprender</button>
-  <button role="tab" data-view="progreso" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progreso</button>
+  <button role="tab" data-view="pendientes" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Pendientes</button>
+  <button role="tab" data-view="historial" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>Historial</button>
 </div></nav>
 
 <section class="lesson" id="lesson" hidden>
@@ -302,6 +399,7 @@ nav button[aria-selected="true"]{color:var(--accent)}
   </div></div>
 </section>
 
+<script src="core.js"></script>
 <script src="prompts.js"></script>
 <script>
 // ---------- Mascota original: Chispa, una luciérnaga ----------
@@ -395,21 +493,20 @@ const MAX_HEARTS=5, XP_LESSON=10, XP_STEP=2, XP_TASK=10, FREE_TASKS=3, RESTS=2;
 const EXAMPLES=["Lavar los trastes","Contestar correos","Estudiar para el examen","Pagar los recibos"];
 
 // ---------- Estado (solo en este dispositivo) ----------
-const KEY="arranca-v4";
+const KEY="arranca-v5",OLD_KEY="arranca-v4"; // v4 se conserva intacto como respaldo
 const dk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const today=()=>dk(new Date());
-let S={done:[],xp:0,days:{},tasksDone:0,tasksStarted:0,stepsDone:0,tasksToday:{},inbox:[],activeId:null,helped:{yes:0,no:0},seeded:false};
-try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
-S.done=S.done.map(x=>typeof x==="number"?"0-"+x:x); // migra el progreso anterior
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let S=ARRANCA_CORE.defaultState();
+try{
+  const r=localStorage.getItem(KEY)||localStorage.getItem(OLD_KEY);
+  if(r){try{S=ARRANCA_CORE.migrate(JSON.parse(r))}catch(e){try{localStorage.setItem(KEY+"-corrupto",r)}catch(_){}}}
+}catch(e){}
+let saveFailed=false;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));if(saveFailed){saveFailed=false;document.getElementById("saveErr").hidden=true}}
+  catch(e){saveFailed=true;document.getElementById("saveErr").hidden=false}};
+save();
 let nextId=1+Math.max(0,...S.inbox.map(x=>x.id));
-const newItem=t=>({id:nextId++,t,steps:null,idx:0,status:"open",started:false,added:Date.now(),touched:0});
-// Ejemplos para que la app no abra vacía
-if(!S.seeded){S.seeded=true;
-  const a=newItem("Lavar los trastes (ejemplo)");a.started=true;a.idx=1;a.touched=Date.now();a.steps=[
-    {s:"Pon una canción que te guste",m:2},{s:"Junta todos los platos en el fregadero",m:3},
-    {s:"Lava solo los vasos",m:3},{s:"Lava platos y cubiertos",m:5},{s:"Limpia la tarja y listo",m:2}];
-  S.inbox=[a,newItem("Contestar el correo de mi jefa (ejemplo)"),newItem("Pagar el recibo de luz (ejemplo)"),newItem("Agendar cita con el dentista (ejemplo)")];save()}
+const newItem=(t,source="quick_capture")=>({id:nextId++,t,steps:null,idx:0,status:"open",started:false,added:Date.now(),touched:0,source});
 function markActive(){if(S.days[today()]!=="on"){S.days[today()]="on";save()}}
 
 // Racha flexible: los días de descanso cuentan como pausa, no como corte
@@ -424,7 +521,7 @@ function addXp(n){S.xp+=n;save();$("sXp").textContent=S.xp}
 
 // ---------- Pestañas ----------
 function go(v){document.querySelectorAll("nav [data-view]").forEach(x=>x.setAttribute("aria-selected",x.dataset.view===v));
-  ["hacer","aprender","progreso"].forEach(x=>$("view-"+x).hidden=x!==v);window.scrollTo(0,0);renderAll()}
+  ["hacer","detalle","pendientes","historial","aprender","progreso"].forEach(x=>$("view-"+x).hidden=x!==v);window.scrollTo(0,0);renderAll()}
 document.querySelectorAll("nav [data-view]").forEach(b=>b.onclick=()=>go(b.dataset.view));
 
 // ---------- Camino ----------
@@ -537,8 +634,11 @@ $("cta").onclick=()=>{
 $("closeBtn").onclick=closeLesson;
 
 // ---------- Hacer: IA (Claude) con respaldo local ----------
-const samplePromise=(window.claude?.use?claude.use("sample"):Promise.resolve(null)).catch(()=>null);
-let aiOff=false;
+// Privacidad (P0): el texto de las tareas no sale del dispositivo. La IA remota queda apagada;
+// los pasos y el orden usan reglas locales. Reactivar solo con consentimiento explícito.
+const REMOTE_AI=false;
+const samplePromise=(REMOTE_AI&&window.claude?.use?claude.use("sample"):Promise.resolve(null)).catch(()=>null);
+let aiOff=!REMOTE_AI;
 // IA: dentro de Claude usa la cuenta de quien la abre; publicada usa el servidor propio (api/ai.js)
 async function askAI(kind,payload){
   if(aiOff)return null;
@@ -555,7 +655,6 @@ async function askAI(kind,payload){
     return (await r.json()).result??null;
   }catch(e){return null}
 }
-const fallbackSteps=t=>[{s:"Junta lo que necesitas para: "+t,m:2},{s:"Haz solo la parte más fácil",m:3},{s:"Sigue 5 minutos más, sin juzgarte",m:5},{s:"Revisa lo que hiciste y ciérralo",m:3}];
 // Modo día sin energía: dura solo el día de hoy
 const isLow=()=>S.lowDay===today();
 $("energyBtn").onclick=()=>{S.lowDay=isLow()?null:today();save();renderTask()};
@@ -565,11 +664,26 @@ const byId=id=>S.inbox.find(x=>x.id===id);
 const active=()=>S.activeId?byId(S.activeId):null;
 
 // 1. Saca todo de tu cabeza
-$("dumpBtn").onclick=()=>{
-  const lines=$("taskInput").value.split("\n").map(s=>s.trim()).filter(Boolean);
-  if(!lines.length){$("taskInput").focus();return}
-  lines.forEach(t=>S.inbox.push(newItem(t)));$("taskInput").value="";
+let dumpOpen=false,lastAdd=0;
+const plural=n=>n===1?"1 pendiente":n+" pendientes";
+$("capForm").onsubmit=e=>{e.preventDefault();
+  if(Date.now()-lastAdd<400)return; // doble toque: no duplica
+  const inp=$("capInput"),t=ARRANCA_CORE.cleanTitle(inp.value);
+  if(!t){inp.setAttribute("aria-invalid","true");$("capMsg").textContent="Escribe algo primero para poder agregarlo.";inp.focus();return}
+  lastAdd=Date.now();inp.removeAttribute("aria-invalid");
+  S.inbox.push(newItem(t));inp.value="";
   ranking=null;suggestPos=0;save();renderTask();rank();
+  $("capMsg").textContent="Listo, lo guardé.";inp.focus();
+};
+$("capInput").oninput=()=>{$("capInput").removeAttribute("aria-invalid")};
+$("dumpOpen").onclick=()=>{dumpOpen=true;$("dumpMsg").textContent="";renderTask();$("taskInput").focus()};
+$("dumpCancel").onclick=()=>{dumpOpen=false;$("taskInput").value="";renderTask();$("dumpOpen").focus()};
+$("dumpBtn").onclick=()=>{
+  const lines=ARRANCA_CORE.parseLines($("taskInput").value);
+  if(!lines.length){$("dumpMsg").textContent="Escribe al menos un pendiente, uno por línea.";$("taskInput").focus();return}
+  lines.forEach(t=>S.inbox.push(newItem(t,"brain_dump")));$("taskInput").value="";dumpOpen=false;
+  ranking=null;suggestPos=0;save();renderTask();rank();
+  $("capMsg").textContent=`Guardé ${plural(lines.length)}.`;$("capInput").focus();
 };
 
 // 2. Decide qué hacer ahora: una sola acción, con su porqué
@@ -592,14 +706,13 @@ async function rank(){
 }
 function current(){if(!ranking)ranking=heuristicRank();ranking=ranking.filter(r=>byId(r.id)?.status==="open");const rid=resumable()?.id;const valid=ranking.filter(r=>r.id!==rid);if(!valid.length)return null;return valid[suggestPos%valid.length]}
 function renderNow(){
-  const c=current();$("nowCard").hidden=!c||!!active();
+  const c=current();$("nowCard").hidden=!c||!!active()||!!resumable()||sessShown; // una sola acción principal a la vez
   if(!c)return;const it=byId(c.id);
   $("nowText").textContent=it.t;$("nowWhy").textContent=c.why;
   $("nowStart").textContent=isLow()?"Hacer solo 2 minutos":it.started?"Retomar esta":"Empezar esta";
   $("nowLabel").textContent=isLow()?"Hoy, solo un paso":"Ahora, solo esto";
   $("nowWhy").textContent=isLow()?"Con poca energía, basta con un paso pequeño. "+c.why:c.why;
   $("nowOther").disabled=ranking.filter(r=>r.id!==resumable()?.id).length<2;
-  const used=S.tasksToday[today()]||0;$("quota").textContent=`${Math.max(0,FREE_TASKS-used)} de ${FREE_TASKS} tareas nuevas gratis hoy`;
 }
 $("nowOther").onclick=()=>{suggestPos++;$("pickList").hidden=true;renderNow()};
 $("nowPick").onclick=()=>{
@@ -610,57 +723,98 @@ $("nowPick").onclick=()=>{
 $("nowStart").onclick=()=>{const c=current();if(c)startItem(c.id)};
 
 // 3. Te acompaña a empezar
-async function startItem(id){
+function startItem(id){
   const it=byId(id);if(!it)return;
-  if(!it.started){
-    const used=S.tasksToday[today()]||0;
-    if(used>=FREE_TASKS){$("quota").textContent="Llegaste a 3 tareas nuevas gratis hoy. Puedes retomar las que ya empezaste. Con Premium son ilimitadas.";return}
-    const b=$("nowStart");b.disabled=true;b.textContent="Preparando pasos mini…";
-    const res=await askAI("steps",{task:it.t});
-    b.disabled=false;
-    let steps=Array.isArray(res)?res.filter(x=>x&&x.s).slice(0,6).map(x=>({s:String(x.s),m:Math.min(5,Math.max(2,Number(x.m)||3))})):null;
-    it.steps=steps&&steps.length?steps:fallbackSteps(it.t);
-    it.started=true;S.tasksStarted++;S.tasksToday[today()]=used+1;
-  }
-  it.touched=Date.now();S.activeId=id;$("pickList").hidden=true;save();resetTimer();renderTask();window.scrollTo(0,0);
+  if(!it.steps||!it.steps.length){
+    if(isLow()){genSteps(it);activate(it)}else openDetail(id,true);
+    return}
+  activate(it);
+}
+function activate(it){
+  if(S.session&&S.session.taskId!==it.id)closeSession(false);
+  if(!it.started){it.started=true;S.tasksStarted++;S.tasksToday[today()]=(S.tasksToday[today()]||0)+1}
+  it.touched=Date.now();S.activeId=it.id;ARRANCA_CORE.nextIdx(it);$("pickList").hidden=true;save();resetTimer();go("hacer");
 }
 async function stuck(){
   const c=active();if(!c)return;const stp=c.steps[c.idx];
   const b=$("stuckBtn");b.disabled=true;b.textContent="Buscando algo más fácil…";
   const res=await askAI("mini",{step:stp.s,task:c.t});
   const mini=res&&res.s?{s:String(res.s),f:String(res.f||"")}:{s:"Solo ponte de pie y acércate a donde harás esto",f:"Empezar pequeño también cuenta."};
-  c.steps.splice(c.idx,0,{s:mini.s,m:1});save();
+  const ns=ARRANCA_CORE.addStep(c,mini.s,1);c.steps.pop();c.steps.splice(c.idx,0,ns);c.sel=ns.id;ARRANCA_CORE.nextIdx(c);c.gen=false;save();
   $("stuckNote").textContent=mini.f;$("stuckNote").hidden=false;
   b.disabled=false;b.textContent="No puedo empezar";resetTimer();renderTask();
 }
-// temporizador visual
-const C=2*Math.PI*52;let tot=120,left=120,tick=null;
+// temporizador visual: el tiempo restante se calcula con marcas de tiempo (resiste cambios de pestaña y suspensión)
+const C=2*Math.PI*52;let tick=null,sessDismissed=false,sessShown=false;
 $("ringBar").style.strokeDasharray=C;
+const CORE=ARRANCA_CORE;
 const fmt=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
-function drawRing(){$("ringBar").style.strokeDashoffset=tot?C*(1-left/tot):C;$("timeText").textContent=fmt(left)}
-function resetTimer(){clearInterval(tick);tick=null;const c=active();tot=left=((c&&c.steps[c.idx]?.m)||2)*60;
-  $("playBtn").textContent="Empezar";$("timeHint").textContent="listo para empezar";drawRing()}
-$("playBtn").onclick=()=>{
-  if(tot===0){tot=left=120;drawRing()}
-  if(tick){clearInterval(tick);tick=null;$("playBtn").textContent="Seguir";$("timeHint").textContent="en pausa";return}
-  markActive();$("sStreak").textContent=streak();$("playBtn").textContent="Pausa";$("timeHint").textContent="en marcha";
-  tick=setInterval(()=>{left--;drawRing();if(left<=0){clearInterval(tick);tick=null;tot=left=0;$("timeHint").textContent="¡tiempo! ¿lo terminaste?";$("playBtn").textContent="+2 min"}},1000);
-};
+const timerMin=()=>S.timerMin||(isLow()?2:5);
+const liveSay=t=>{$("timerLive").textContent=t};
+const sess=()=>S.session&&(S.session.status==="running"||S.session.status==="paused")?S.session:null;
+const endedSess=()=>S.session&&S.session.status==="completed"?S.session:null;
+function archiveSession(){if(S.session){S.sessions.push(S.session);S.sessions=S.sessions.slice(-200);S.session=null;save()}}
+function closeSession(counted){const se=sess();if(se)CORE.endSession(se,Date.now(),counted);archiveSession()}
+function checkSession(){const se=S.session;if(se&&se.status==="running"&&CORE.syncSession(se,Date.now())){save();liveSay("Terminaste este bloque.")}}
+function renderTimer(){
+  checkSession();
+  const se=sess(),en=endedSess(),c=active(),now=Date.now();
+  const tot=se?se.durationSeconds:en?en.durationSeconds:timerMin()*60,left=se?CORE.remaining(se,now):en?0:tot;
+  $("ringBar").style.strokeDashoffset=tot?C*(1-left/tot):C;$("timeText").textContent=fmt(left);
+  $("playBtn").textContent=!se?"Empezar":se.status==="running"?"Pausar":"Continuar";
+  $("timeHint").textContent=en?"bloque terminado":!se?"listo para empezar":se.status==="running"?"en marcha":"en pausa";
+  $("blockEnd").hidden=!en||!c;$("endBtn").hidden=!se;if(!se)$("endAsk").hidden=true;
+  const running=!!se&&se.status==="running";
+  $("durBtn").hidden=running;if(running)$("durSeg").hidden=true;
+  $("durBtn").textContent=`Cambiar duración · ${Math.round(tot/60)} min`;
+  document.querySelectorAll("#durSeg [data-min]").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.min*60===tot));
+  if(running&&!tick)tick=setInterval(renderTimer,500);
+  if(!running&&tick){clearInterval(tick);tick=null}
+}
+const resetTimer=renderTimer;
+$("playBtn").onclick=()=>{const c=active();if(!c)return;checkSession();const se=sess();
+  if(!se){archiveSession();markActive();$("sStreak").textContent=streak();
+    S.session=CORE.startSession({taskId:c.id,stepId:c.steps[c.idx]?.id,minutes:timerMin()},Date.now());liveSay(`Bloque de ${timerMin()} minutos iniciado.`)}
+  else if(se.status==="running"){CORE.pauseSession(se,Date.now());liveSay("Bloque en pausa.")}
+  else{CORE.resumeSession(se,Date.now());liveSay("Seguimos con el bloque.")}
+  save();renderTimer()};
+$("durBtn").onclick=()=>{$("durSeg").hidden=!$("durSeg").hidden};
+document.querySelectorAll("#durSeg [data-min]").forEach(b=>b.onclick=()=>{const m=+b.dataset.min,se=sess();
+  if(se){if(se.status==="paused")CORE.setDuration(se,m)}else S.timerMin=m;
+  save();$("durSeg").hidden=true;renderTimer()});
+$("endBtn").onclick=()=>{$("endAsk").hidden=false};
+$("endCancel").onclick=()=>{$("endAsk").hidden=true};
+function endBlock(counted){closeSession(counted);liveSay(counted?"Bloque registrado.":"Bloque descartado.");$("endAsk").hidden=true;renderTimer()}
+$("endKeep").onclick=()=>endBlock(true);$("endDrop").onclick=()=>endBlock(false);
+$("blockAgain").onclick=()=>{archiveSession();$("playBtn").onclick()};
+$("blockDone").onclick=()=>$("doneBtn").onclick();
+$("blockLater").onclick=()=>{archiveSession();$("dropBtn").onclick()};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderTask()});
+window.addEventListener("pageshow",()=>renderTask());
+// sesión pausada al reabrir: nunca se reanuda sola
+$("sessResume").onclick=()=>{const se=S.session,it=se&&byId(se.taskId);if(!it)return;activate(it);
+  const s2=sess();if(s2&&s2.status==="paused"){CORE.resumeSession(s2,Date.now());liveSay("Seguimos con el bloque.")}save();renderTimer()};
+$("sessLater").onclick=()=>{sessDismissed=true;renderTask()};
 let lastDone=null;
+function finishTask(c){
+  c.status="done";c.completedAt=Date.now();S.tasksDone++;addXp(XP_TASK);if(S.activeId===c.id)S.activeId=null;lastDone=c.id;
+  $("doneText").textContent=`Terminaste "${c.t}". Quedó en tu historial.`;
+  $("helpAsk").hidden=false;$("againBtn").textContent="Siguiente";$("oneMoreBtn").hidden=true;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
+  closeSession(true);save();renderTask(true);
+}
 $("doneBtn").onclick=()=>{
-  const c=active();if(!c)return;markActive();S.stepsDone++;addXp(XP_STEP);c.idx++;c.touched=Date.now();$("stuckNote").hidden=true;
-  if(c.idx>=c.steps.length){c.status="done";S.tasksDone++;addXp(XP_TASK);S.activeId=null;lastDone=c.id;
-    $("doneText").textContent=`Terminaste "${c.t}" en ${c.steps.length} pasos mini. +${XP_TASK} XP extra. Date tu premio.`;
-    $("helpAsk").hidden=false;$("againBtn").textContent="Siguiente";$("oneMoreBtn").hidden=true;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
-    save();clearInterval(tick);tick=null;renderTask(true);return}
-  if(isLow()){lowDoneId=c.id;c.touched=Date.now();S.activeId=null;save();clearInterval(tick);tick=null;
+  const c=active();if(!c)return;const st=c.steps[c.idx];if(!st)return;
+  closeSession(true);markActive();S.stepsDone++;addXp(XP_STEP);c.touched=Date.now();$("stuckNote").hidden=true;
+  if(ARRANCA_CORE.toggleStep(c,st.id))return finishTask(c);
+  if(isLow()){lowDoneId=c.id;S.activeId=null;save();
     $("doneText").textContent="Hiciste tu paso de hoy. Con poca energía, eso es suficiente. Tu avance quedó guardado.";
     $("helpAsk").hidden=true;$("againBtn").textContent="Listo por hoy";$("oneMoreBtn").hidden=false;renderTask(true);return}
   save();resetTimer();renderTask();
 };
+$("editStepsBtn").onclick=()=>{const c=active();if(c)openDetail(c.id,false)};
 $("oneMoreBtn").onclick=()=>{if(lowDoneId)startItem(lowDoneId)};
 // 4. Te ayuda a retomar: pausar nunca borra el avance
-$("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
+$("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();checkSession();const se=sess();if(se&&se.status==="running")CORE.pauseSession(se,Date.now());if(endedSess())archiveSession();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
 $("resumeBtn").onclick=()=>{const r=resumable();if(r)startItem(r.id)};
 function resumable(){return openItems().filter(x=>x.started).sort((a,b)=>b.touched-a.touched)[0]||null}
 function bindHelp(){$("helpAsk").querySelectorAll("[data-help]").forEach(b=>b.onclick=()=>{S.helped[b.dataset.help]++;save();
@@ -672,17 +826,26 @@ function renderTask(celebrate){
   const c=active();const showDone=!!celebrate;
   $("doneCard").hidden=!showDone;$("focusCard").hidden=!c;
   const idle=!c&&!showDone;
-  $("dumpCard").hidden=!idle||isLow();
+  if(!c&&S.session&&S.session.status==="running"){CORE.pauseSession(S.session,Date.now());save()}
+  let ps=!c&&S.session&&S.session.status==="paused"?S.session:null;
+  if(ps){const pi=byId(ps.taskId);if(!pi||pi.status!=="open"){closeSession(false);ps=null}}
+  if(!c&&endedSess())archiveSession();
+  sessShown=!!(idle&&ps&&!sessDismissed);$("sessCard").hidden=!sessShown;
+  if(ps)$("sessNote").textContent=`Quedan ${fmt(CORE.remaining(ps,Date.now()))} en tu bloque. Tu avance sigue aquí.`;
+  if(c&&S.session&&S.session.taskId===c.id&&c.steps[c.idx])S.session.stepId=c.steps[c.idx].id;
+  $("captureCard").hidden=!idle||isLow()||dumpOpen;
+  $("dumpCard").hidden=!idle||isLow()||!dumpOpen;
   $("energyBtn").hidden=!!c;$("energyBtn").setAttribute("aria-pressed",isLow());
   $("energyBtn").textContent=isLow()?"🔋 Modo poca energía activo · toca para salir":"🔋 Hoy tengo poca energía";
   const r=resumable();
-  $("resumeCard").hidden=!idle||!r;
-  if(r){$("resumeTitle").textContent=r.t;$("resumeStep").textContent=`Vas en el paso ${r.idx+1} de ${r.steps.length}. Tu avance sigue aquí.`}
+  $("resumeCard").hidden=!idle||!r||sessShown;
+  if(r){$("resumeTitle").textContent=r.t;const na=ARRANCA_CORE.nextAction(S.inbox,null);$("resumeStep").textContent=na&&na.step?`Tu siguiente paso: ${na.step.s}. Tu avance sigue aquí.`:"Tu avance sigue aquí."}
   if(idle)renderNow();else $("nowCard").hidden=true;
-  const n=openItems().length;$("inboxCount").textContent=n?`Tienes ${n} pendiente${n===1?"":"s"} en tu lista. Arranca te sugiere uno a la vez.`:"Tu lista está vacía.";
-  if(c){const st=c.steps[c.idx];$("taskTitle").textContent=c.t;$("stepLabel").textContent=`Paso ${c.idx+1} de ${c.steps.length}`;$("stepText").textContent=st.s;
-    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${i<c.idx?"done":i===c.idx?"now":""}"><span class="dot">${i<c.idx?"✓":i+1}</span><span>${esc(x.s)} <span class="note">· ${x.m} min</span></span></li>`).join("")}
+  const n=openItems().length;$("inboxCount").textContent=n?`Tienes ${plural(n)}. Arranca te sugiere uno a la vez.`:"Aún no tienes pendientes. Por ejemplo: «Pagar la luz». Escribe una cosa arriba y pulsa Agregar.";
+  if(c){ARRANCA_CORE.nextIdx(c);const st=c.steps[c.idx];$("taskTitle").textContent=c.t;$("stepLabel").textContent=`Paso ${c.idx+1} de ${c.steps.length}`;$("stepText").textContent=st.s;
+    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${x.d?"done":i===c.idx?"now":""}"><span class="dot">${x.d?"✓":i+1}</span><span>${esc(x.s)}</span></li>`).join("")}
   $("sStreak").textContent=streak();
+  renderTimer();
 }
 
 // ---------- Progreso ----------
@@ -694,7 +857,120 @@ function renderProgress(){
 }
 $("restBtn").onclick=()=>{if(RESTS-restsUsed()>0&&!S.days[today()]){S.days[today()]="rest";save();renderAll()}};
 
-function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp;renderPath();renderTask();renderProgress()}
+// ---------- Pendientes e historial ----------
+let pendFilter="all",editingId=null;
+const fdate=t=>new Date(t).toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"});
+function renderPend(){
+  $("fAll").setAttribute("aria-pressed",pendFilter==="all");$("fProg").setAttribute("aria-pressed",pendFilter==="prog");
+  let list=ARRANCA_CORE.sortPending(S.inbox);if(pendFilter==="prog")list=list.filter(x=>x.started);
+  if(!list.length){$("pendList").innerHTML=`<li class="note">${pendFilter==="prog"?"No tienes tareas en progreso ahora.":"No tienes pendientes. Cuando captures algo en Hoy, aparecerá aquí."}</li>`;return}
+  $("pendList").innerHTML=list.map(x=>{
+    const n=x.steps?x.steps.length:0,e=esc(x.t);
+    const st=x.started?`En progreso${n?` · paso ${Math.min(x.idx+1,n)} de ${n}`:""}`:"Pendiente";
+    const head=editingId===x.id
+      ?`<label class="sr" for="editInp">Editar título</label><input type="text" id="editInp" value="${e}"><div class="acts"><button class="go" data-a="save" data-id="${x.id}">Guardar</button><button data-a="cancel" data-id="${x.id}">Cancelar</button></div>`
+      :`<span class="tt">${e}</span><span class="note">${st}</span><div class="acts"><button class="go" data-a="open" data-id="${x.id}" aria-label="Abrir: ${e}">${x.started?"Retomar":"Empezar"}</button><button data-a="steps" data-id="${x.id}" aria-label="Dividir en pasos: ${e}">Pasos</button><button data-a="edit" data-id="${x.id}" aria-label="Editar título: ${e}">Editar</button><button data-a="archive" data-id="${x.id}" aria-label="Archivar: ${e}">Archivar</button><button data-a="del" data-id="${x.id}" aria-label="Eliminar: ${e}">Eliminar</button></div>`;
+    return `<li class="trow">${head}</li>`}).join("");
+  const inp=$("editInp");if(inp){inp.focus();inp.onkeydown=ev=>{if(ev.key==="Enter")pendAct("save",editingId);if(ev.key==="Escape")pendAct("cancel",editingId)}}
+}
+function pendAct(a,id){
+  const it=byId(id);if(!it)return;
+  if(a==="open"){startItem(id);return}
+  if(a==="steps"){openDetail(id,true);return}
+  if(a==="edit"){editingId=id;renderPend();return}
+  if(a==="cancel"){editingId=null;renderPend();return}
+  if(a==="save"){const t=ARRANCA_CORE.cleanTitle($("editInp").value);if(!t){$("editInp").setAttribute("aria-invalid","true");return}
+    it.t=t;editingId=null;save();ranking=null;renderPend();return}
+  if(a==="archive"||a==="del"){
+    if(a==="del"&&it.steps&&it.steps.length&&!confirm("Esta tarea tiene pasos. ¿Eliminarla de forma permanente?"))return;
+    if(S.session&&S.session.taskId===id)closeSession(false);
+    if(S.activeId===id){S.activeId=null;resetTimer()}
+    if(a==="del")S.inbox=S.inbox.filter(x=>x.id!==id);else it.status="archived";
+    ranking=null;suggestPos=0;save();renderAll()}
+}
+$("pendList").onclick=e=>{const b=e.target.closest("button[data-a]");if(b)pendAct(b.dataset.a,+b.dataset.id)};
+$("fAll").onclick=()=>{pendFilter="all";renderPend()};
+$("fProg").onclick=()=>{pendFilter="prog";renderPend()};
+function renderHist(){
+  const list=ARRANCA_CORE.sortHistory(S.inbox);
+  $("histList").innerHTML=list.length?list.map(x=>{const n=x.steps?x.steps.length:0;
+    return `<li class="trow"><span class="tt">${esc(x.t)}</span><span class="note">Terminada el ${fdate(x.completedAt)}${n?` · ${n} paso${n===1?"":"s"} completado${n===1?"":"s"}`:""}</span></li>`}).join("")
+    :`<li class="note">Aquí aparecerán las tareas que termines. Tu progreso siempre queda guardado.</li>`;
+}
+
+// ---------- Detalle y descomposición ----------
+let detailId=null;
+const STEP_MSG={vacio:"Un paso no puede quedar vacío.",vago:"Hazlo más concreto: ¿qué harías primero, con las manos o en la pantalla?",duplicado:"Ya tienes un paso igual."};
+function genSteps(it){
+  try{const l=ARRANCA_CORE.suggestSteps(it.t,it.gran);if(!l.length)throw new Error("vacío");
+    ARRANCA_CORE.setSteps(it,l);it.gen=true;save();return true}
+  catch(e){$("detMsg").textContent="No pude generar sugerencias. Puedes escribir tus pasos a mano.";return false}
+}
+function openDetail(id,fresh){
+  const it=byId(id);if(!it)return;detailId=id;$("detMsg").textContent="";
+  if(fresh&&(!it.steps||!it.steps.length))genSteps(it);
+  go("detalle");
+}
+function renderDetail(){
+  const it=detailId&&byId(detailId);if(!it||$("view-detalle").hidden)return;
+  const i=ARRANCA_CORE.nextIdx(it),steps=it.steps||[];
+  if(document.activeElement!==$("detTitle"))$("detTitle").value=it.t;
+  $("detNextText").textContent=steps[i]?steps[i].s:"Agrega un paso o empieza sin dividir.";
+  document.querySelectorAll("#view-detalle [data-g]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===(it.gran||"balanced")));
+  $("detSteps").innerHTML=steps.map((x,k)=>`<li class="trow ${x.d?"sdone":""}"><label class="sr" for="st${x.id}">Paso ${k+1}</label>
+    <input type="text" id="st${x.id}" data-id="${x.id}" value="${esc(x.s)}">
+    <div class="acts"><button data-a="tog" data-id="${x.id}" aria-pressed="${x.d}">${x.d?"Hecho ✓":"Marcar hecho"}</button>
+    ${x.d?"":`<button data-a="sel" data-id="${x.id}" aria-pressed="${it.sel===x.id}">${it.sel===x.id?"Va primero ✓":"Hacer primero"}</button>`}
+    <button data-a="up" data-id="${x.id}" aria-label="Subir paso ${k+1}"${k===0?" disabled":""}>Subir</button>
+    <button data-a="dn" data-id="${x.id}" aria-label="Bajar paso ${k+1}"${k===steps.length-1?" disabled":""}>Bajar</button>
+    <button data-a="rm" data-id="${x.id}" aria-label="Eliminar paso ${k+1}">Eliminar</button></div></li>`).join("");
+}
+function stepsChanged(it,before,keepGen){
+  if(!keepGen)it.gen=false;
+  const n=it.steps.length;
+  if(n&&it.steps.every(x=>x.d)&&it.status==="open"){save();go("hacer");finishTask(it);return}
+  if(!n&&S.activeId===it.id)S.activeId=null;
+  save();if(S.activeId===it.id&&it.steps[it.idx]?.id!==before)resetTimer();
+  renderDetail();renderTask();
+}
+$("detBack").onclick=()=>go("pendientes");
+$("detTitle").onchange=()=>{const it=byId(detailId),t=ARRANCA_CORE.cleanTitle($("detTitle").value);
+  if(!it)return;if(!t){$("detTitle").value=it.t;return}it.t=t;ranking=null;save()};
+document.querySelectorAll("#view-detalle [data-g]").forEach(b=>b.onclick=()=>{
+  const it=byId(detailId);if(!it)return;it.gran=b.dataset.g;
+  if(it.gen&&!(it.steps||[]).some(x=>x.d)){genSteps(it);$("detMsg").textContent=""}
+  else{save();$("detMsg").textContent="Nivel guardado. Pulsa «Generar sugerencias de nuevo» para aplicarlo a tus pasos."}
+  renderDetail()});
+$("detGen").onclick=()=>{const it=byId(detailId);if(!it)return;
+  if(it.steps&&it.steps.length&&(!it.gen||it.steps.some(x=>x.d))&&!confirm("Esto reemplaza tus pasos actuales, incluidos los ya hechos. ¿Continuar?"))return;
+  const before=it.steps&&it.steps[it.idx]?.id;$("detMsg").textContent="";
+  if(genSteps(it))stepsChanged(it,before,true)};
+$("detAddForm").onsubmit=e=>{e.preventDefault();const it=byId(detailId);if(!it)return;
+  const v=ARRANCA_CORE.validateStep(it.steps,$("detAdd").value);
+  if(!v.ok){$("detMsg").textContent=STEP_MSG[v.reason];$("detAdd").focus();return}
+  const before=it.steps&&it.steps[it.idx]?.id;ARRANCA_CORE.addStep(it,v.title,3);$("detAdd").value="";$("detMsg").textContent="Paso agregado.";
+  stepsChanged(it,before);$("detAdd").focus()};
+$("detSteps").onchange=e=>{const inp=e.target.closest("input[data-id]"),it=byId(detailId);if(!inp||!it)return;
+  const id=+inp.dataset.id,v=ARRANCA_CORE.validateStep(it.steps,inp.value,id);
+  if(!v.ok){$("detMsg").textContent=STEP_MSG[v.reason];renderDetail();return}
+  ARRANCA_CORE.renameStep(it,id,v.title);$("detMsg").textContent="";stepsChanged(it,it.steps[it.idx]?.id)};
+$("detSteps").onclick=e=>{const b=e.target.closest("button[data-a]"),it=byId(detailId);if(!b||!it)return;
+  const id=+b.dataset.id,a=b.dataset.a,before=it.steps[it.idx]?.id;$("detMsg").textContent="";
+  if(a==="tog")ARRANCA_CORE.toggleStep(it,id);
+  else if(a==="sel"){it.sel=it.sel===id?null:id;ARRANCA_CORE.nextIdx(it)}
+  else if(a==="up")ARRANCA_CORE.moveStep(it,id,-1);
+  else if(a==="dn")ARRANCA_CORE.moveStep(it,id,1);
+  else if(a==="rm")ARRANCA_CORE.removeStep(it,id);
+  stepsChanged(it,before,true)};
+$("detStart").onclick=()=>{const it=byId(detailId);if(!it)return;
+  if(!it.steps||!it.steps.length)return wholeTask(it);
+  activate(it)};
+function wholeTask(it){ARRANCA_CORE.setSteps(it,[{s:it.t,m:5}]);it.gen=false;activate(it)}
+$("detWhole").onclick=()=>{const it=byId(detailId);if(!it)return;
+  if(it.steps&&it.steps.length&&!confirm("Esto reemplaza tus pasos por uno solo con el título de la tarea. ¿Continuar?"))return;
+  wholeTask(it)};
+
+function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp;renderPath();renderTask();renderProgress();renderPend();renderHist();renderDetail()}
 (function welcome(){
   const startOf=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
   const gap=S.lastSeen?Math.round((startOf(Date.now())-startOf(S.lastSeen))/864e5):0;

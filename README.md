@@ -10,9 +10,15 @@ Todo se guarda en el dispositivo (localStorage). Sin conexión funciona gracias 
 
 > Arranca ofrece psicoeducación y estrategias. No sustituye diagnóstico ni tratamiento profesional.
 
-## IA (Claude Haiku 5.5)
-La app pide ayuda a `api/ai.js`, que guarda la clave de Anthropic en el servidor. Las instrucciones para la IA están en `prompts.js`.
-Si el servidor no está disponible, la app sigue funcionando con pasos genéricos.
+## Privacidad y IA
+El texto de tus tareas no sale del dispositivo. La IA remota está **apagada** (`REMOTE_AI=false` en `index.html`); los pasos y el orden usan reglas locales. `api/ai.js` y `prompts.js` se conservan sin uso para una futura opción con consentimiento explícito. La app solo carga las tipografías de Google Fonts (sin datos de tareas).
+
+## Datos y pruebas
+- Esquema v5 en `localStorage` (`arranca-v5`). Al abrir, migra `arranca-v4` y la deja intacta como respaldo. Si un dato está corrupto se guarda copia en `arranca-v5-corrupto`.
+- Temporizador de 2/5/10/15 min (5 por defecto) calculado con marcas de tiempo; la sesión (`session`/`sessions`) guarda solo ids y números, nunca texto, y sobrevive a recargas.
+- Lógica pura en `core.js`. Pruebas: `npm test` (`node:test`, sin dependencias).
+- Analítica: no hay ninguna. Si se añade, debe ser opcional, con consentimiento y sin títulos, pasos ni notas (solo tipo de evento, duración y conteos).
+- Aprender, XP, racha y Premium siguen en el código pero ocultos de la navegación principal.
 
 ### Publicar en Vercel
 1. Entra a vercel.com con tu cuenta de GitHub e importa este repo (sin configuración extra).
