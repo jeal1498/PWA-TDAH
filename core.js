@@ -4,7 +4,8 @@
 
   const defaultState = () => ({
     schemaVersion: SCHEMA, done: [], xp: 0, days: {}, tasksDone: 0, tasksStarted: 0, stepsDone: 0,
-    tasksToday: {}, inbox: [], activeId: null, helped: { yes: 0, no: 0 }, seeded: true
+    tasksToday: {}, inbox: [], activeId: null, helped: { yes: 0, no: 0 }, seeded: true,
+    session: null, sessions: [], timerMin: null
   });
 
   // Recorta espacios exteriores; devuelve "" si no hay texto.
@@ -31,6 +32,9 @@
       if (o.status === "done" && !o.completedAt) o.completedAt = o.touched || o.added || Date.now();
       return o;
     });
+    S.session = sanitizeSession(S.session);
+    S.sessions = (Array.isArray(S.sessions) ? S.sessions : []).filter(x => x && typeof x === "object").slice(-200);
+    if (!DURATIONS.includes(S.timerMin)) S.timerMin = null;
     S.schemaVersion = SCHEMA;
     return S;
   }
@@ -113,7 +117,60 @@
     return bare ? { task: bare, step: null } : null;
   }
 
-  const api = { SCHEMA, defaultState, cleanTitle, parseLines, migrate, sortPending, sortHistory,
+  // ---------- Sesiones de enfoque (se calculan con marcas de tiempo, no con ticks) ----------
+  // Solo guardan ids y números: nunca texto de tareas.
+  const DURATIONS = [2, 5, 10, 15];
+  const isNum = x => typeof x === "number" && isFinite(x);
+
+  function sanitizeSession(se) {
+    if (!se || typeof se !== "object" || !["running", "paused", "completed"].includes(se.status)) return null;
+    if (!isNum(se.durationSeconds) || se.durationSeconds <= 0) return null;
+    const out = Object.assign({}, se);
+    out.remainingSeconds = isNum(se.remainingSeconds) ? Math.min(Math.max(0, se.remainingSeconds), se.durationSeconds) : se.durationSeconds;
+    if (out.status === "running" && !isNum(out.endsAt)) { out.status = "paused"; delete out.endsAt; }
+    return out;
+  }
+
+  // Segundos restantes. Si el reloj retrocede nunca superan la duración; si avanza, la sesión termina.
+  const remaining = (se, now) => se.status === "running"
+    ? Math.max(0, Math.min(se.durationSeconds, Math.ceil((se.endsAt - now) / 1000)))
+    : se.remainingSeconds;
+
+  function startSession(o, now) {
+    const dur = (DURATIONS.includes(o.minutes) ? o.minutes : 5) * 60;
+    return { id: "s" + now.toString(36) + Math.floor(Math.random() * 1e4), taskId: o.taskId == null ? null : o.taskId, stepId: o.stepId == null ? null : o.stepId,
+      durationSeconds: dur, remainingSeconds: dur, status: "running", startedAt: now, pausedAt: null, endedAt: null, endsAt: now + dur * 1000 };
+  }
+  // Si una sesión en marcha ya agotó su tiempo, la completa. Devuelve true si cambió.
+  function syncSession(se, now) {
+    if (se.status !== "running" || remaining(se, now) > 0) return false;
+    se.status = "completed"; se.remainingSeconds = 0; se.endedAt = Math.min(now, se.endsAt); delete se.endsAt;
+    return true;
+  }
+  function pauseSession(se, now) {
+    if (syncSession(se, now) || se.status !== "running") return se;
+    se.remainingSeconds = remaining(se, now); se.status = "paused"; se.pausedAt = now; delete se.endsAt;
+    return se;
+  }
+  function resumeSession(se, now) {
+    if (se.status !== "paused") return se;
+    se.status = "running"; se.pausedAt = null; se.endsAt = now + se.remainingSeconds * 1000;
+    syncSession(se, now);
+    return se;
+  }
+  // counted=true: bloque registrado como terminado; false: descartado.
+  function endSession(se, now, counted) {
+    if (se.status === "running") se.remainingSeconds = remaining(se, now);
+    se.status = counted ? "completed" : "abandoned"; se.endedAt = now; delete se.endsAt;
+    return se;
+  }
+  function setDuration(se, minutes) {
+    if (se.status !== "paused" || !DURATIONS.includes(minutes)) return se;
+    se.durationSeconds = se.remainingSeconds = minutes * 60;
+    return se;
+  }
+
+  const api = { DURATIONS, sanitizeSession, remaining, startSession, syncSession, pauseSession, resumeSession, endSession, setDuration, SCHEMA, defaultState, cleanTitle, parseLines, migrate, sortPending, sortHistory,
     suggestSteps, validateStep, nextIdx, addStep, setSteps, renameStep, removeStep, moveStep, toggleStep, nextAction };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ARRANCA_CORE = api;

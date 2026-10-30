@@ -194,6 +194,7 @@ input[aria-invalid=true]{border-color:var(--bad)}
 .trow .acts{display:flex;gap:8px;flex-wrap:wrap}
 .trow .acts button{border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;min-height:44px;font-size:15px}
 .trow .acts button.go{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.inner{background:var(--ok-soft);border:1px solid var(--ok);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;width:100%;box-sizing:border-box;text-align:left}
 .trow.sdone input{text-decoration:line-through;color:var(--muted)}
 .step-text,.trow .tt,#nowText,#taskTitle{overflow-wrap:anywhere}
 @media (prefers-reduced-motion: reduce){.bubble{animation:none}.bar i,.node .btn,.ring .rbar{transition:none}}
@@ -241,6 +242,13 @@ input[aria-invalid=true]{border-color:var(--bad)}
     <button class="primary" id="dumpBtn">Guardar pendientes</button>
     <button class="ghost" id="dumpCancel">Cancelar</button>
   </div>
+  <div class="card resume" id="sessCard" hidden>
+    <span class="label">Tienes una sesión pausada</span>
+    <b>Puedes retomarla cuando quieras</b>
+    <span class="note" id="sessNote"></span>
+    <button class="primary" id="sessResume">Continuar</button>
+    <button class="ghost" id="sessLater">Dejar para después</button>
+  </div>
   <div class="card resume" id="resumeCard" hidden>
     <span class="label">Retoma donde te quedaste</span>
     <b id="resumeTitle"></b>
@@ -266,12 +274,30 @@ input[aria-invalid=true]{border-color:var(--bad)}
     <div class="step-text" id="stepText"></div>
     <div class="ring">
       <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52" stroke-width="10"/><circle class="rbar" id="ringBar" cx="60" cy="60" r="52" stroke-width="10"/></svg>
-      <div class="time"><span id="timeText">2:00</span><small id="timeHint">listo para empezar</small></div>
+      <div class="time" role="timer" aria-label="Tiempo restante"><span id="timeText">5:00</span><small id="timeHint">listo para empezar</small></div>
     </div>
     <div class="row">
       <button class="primary" id="playBtn">Empezar</button>
       <button class="ghost" id="doneBtn">Hecho ✓</button>
     </div>
+    <div class="inner" id="blockEnd" hidden>
+      <b>Terminaste este bloque.</b><span>¿Qué quieres hacer ahora?</span>
+      <button class="ghost" id="blockAgain">Otro bloque</button>
+      <button class="ghost" id="blockDone">Marcar este paso como hecho</button>
+      <button class="ghost" id="blockLater">Seguir después</button>
+    </div>
+    <button class="ghost" id="endBtn" style="width:100%;font-weight:400;font-size:15px" hidden>Terminar bloque</button>
+    <div class="inner" id="endAsk" hidden style="background:var(--calm-soft);border-color:var(--calm)">
+      <b>¿Cómo registramos este bloque?</b>
+      <button class="ghost" id="endKeep">Cuenta como terminado</button>
+      <button class="ghost" id="endDrop">Descartarlo</button>
+      <button class="ghost" id="endCancel">Seguir con el bloque</button>
+    </div>
+    <button class="ghost" id="durBtn" style="width:100%;font-weight:400;font-size:15px">Cambiar duración</button>
+    <div class="seg" id="durSeg" role="group" aria-label="Duración del bloque" hidden>
+      <button data-min="2">2 min</button><button data-min="5">5 min</button><button data-min="10">10 min</button><button data-min="15">15 min</button>
+    </div>
+    <span class="sr" id="timerLive" role="status" aria-live="polite"></span>
     <button class="stuck" id="stuckBtn">No puedo empezar</button>
     <span class="note" id="stuckNote" hidden></span>
     <ul class="steps" id="stepList"></ul>
@@ -680,7 +706,7 @@ async function rank(){
 }
 function current(){if(!ranking)ranking=heuristicRank();ranking=ranking.filter(r=>byId(r.id)?.status==="open");const rid=resumable()?.id;const valid=ranking.filter(r=>r.id!==rid);if(!valid.length)return null;return valid[suggestPos%valid.length]}
 function renderNow(){
-  const c=current();$("nowCard").hidden=!c||!!active()||!!resumable(); // una sola acción principal a la vez
+  const c=current();$("nowCard").hidden=!c||!!active()||!!resumable()||sessShown; // una sola acción principal a la vez
   if(!c)return;const it=byId(c.id);
   $("nowText").textContent=it.t;$("nowWhy").textContent=c.why;
   $("nowStart").textContent=isLow()?"Hacer solo 2 minutos":it.started?"Retomar esta":"Empezar esta";
@@ -705,6 +731,7 @@ function startItem(id){
   activate(it);
 }
 function activate(it){
+  if(S.session&&S.session.taskId!==it.id)closeSession(false);
   if(!it.started){it.started=true;S.tasksStarted++;S.tasksToday[today()]=(S.tasksToday[today()]||0)+1}
   it.touched=Date.now();S.activeId=it.id;ARRANCA_CORE.nextIdx(it);$("pickList").hidden=true;save();resetTimer();go("hacer");
 }
@@ -717,31 +744,69 @@ async function stuck(){
   $("stuckNote").textContent=mini.f;$("stuckNote").hidden=false;
   b.disabled=false;b.textContent="No puedo empezar";resetTimer();renderTask();
 }
-// temporizador visual
-const C=2*Math.PI*52;let tot=120,left=120,tick=null;
+// temporizador visual: el tiempo restante se calcula con marcas de tiempo (resiste cambios de pestaña y suspensión)
+const C=2*Math.PI*52;let tick=null,sessDismissed=false,sessShown=false;
 $("ringBar").style.strokeDasharray=C;
+const CORE=ARRANCA_CORE;
 const fmt=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
-function drawRing(){$("ringBar").style.strokeDashoffset=tot?C*(1-left/tot):C;$("timeText").textContent=fmt(left)}
-function resetTimer(){clearInterval(tick);tick=null;const c=active();tot=left=((c&&c.steps[c.idx]?.m)||2)*60;
-  $("playBtn").textContent="Empezar";$("timeHint").textContent="listo para empezar";drawRing()}
-$("playBtn").onclick=()=>{
-  if(tot===0){tot=left=120;drawRing()}
-  if(tick){clearInterval(tick);tick=null;$("playBtn").textContent="Seguir";$("timeHint").textContent="en pausa";return}
-  markActive();$("sStreak").textContent=streak();$("playBtn").textContent="Pausa";$("timeHint").textContent="en marcha";
-  tick=setInterval(()=>{left--;drawRing();if(left<=0){clearInterval(tick);tick=null;tot=left=0;$("timeHint").textContent="¡tiempo! ¿lo terminaste?";$("playBtn").textContent="+2 min"}},1000);
-};
+const timerMin=()=>S.timerMin||(isLow()?2:5);
+const liveSay=t=>{$("timerLive").textContent=t};
+const sess=()=>S.session&&(S.session.status==="running"||S.session.status==="paused")?S.session:null;
+const endedSess=()=>S.session&&S.session.status==="completed"?S.session:null;
+function archiveSession(){if(S.session){S.sessions.push(S.session);S.sessions=S.sessions.slice(-200);S.session=null;save()}}
+function closeSession(counted){const se=sess();if(se)CORE.endSession(se,Date.now(),counted);archiveSession()}
+function checkSession(){const se=S.session;if(se&&se.status==="running"&&CORE.syncSession(se,Date.now())){save();liveSay("Terminaste este bloque.")}}
+function renderTimer(){
+  checkSession();
+  const se=sess(),en=endedSess(),c=active(),now=Date.now();
+  const tot=se?se.durationSeconds:en?en.durationSeconds:timerMin()*60,left=se?CORE.remaining(se,now):en?0:tot;
+  $("ringBar").style.strokeDashoffset=tot?C*(1-left/tot):C;$("timeText").textContent=fmt(left);
+  $("playBtn").textContent=!se?"Empezar":se.status==="running"?"Pausar":"Continuar";
+  $("timeHint").textContent=en?"bloque terminado":!se?"listo para empezar":se.status==="running"?"en marcha":"en pausa";
+  $("blockEnd").hidden=!en||!c;$("endBtn").hidden=!se;if(!se)$("endAsk").hidden=true;
+  const running=!!se&&se.status==="running";
+  $("durBtn").hidden=running;if(running)$("durSeg").hidden=true;
+  $("durBtn").textContent=`Cambiar duración · ${Math.round(tot/60)} min`;
+  document.querySelectorAll("#durSeg [data-min]").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.min*60===tot));
+  if(running&&!tick)tick=setInterval(renderTimer,500);
+  if(!running&&tick){clearInterval(tick);tick=null}
+}
+const resetTimer=renderTimer;
+$("playBtn").onclick=()=>{const c=active();if(!c)return;checkSession();const se=sess();
+  if(!se){archiveSession();markActive();$("sStreak").textContent=streak();
+    S.session=CORE.startSession({taskId:c.id,stepId:c.steps[c.idx]?.id,minutes:timerMin()},Date.now());liveSay(`Bloque de ${timerMin()} minutos iniciado.`)}
+  else if(se.status==="running"){CORE.pauseSession(se,Date.now());liveSay("Bloque en pausa.")}
+  else{CORE.resumeSession(se,Date.now());liveSay("Seguimos con el bloque.")}
+  save();renderTimer()};
+$("durBtn").onclick=()=>{$("durSeg").hidden=!$("durSeg").hidden};
+document.querySelectorAll("#durSeg [data-min]").forEach(b=>b.onclick=()=>{const m=+b.dataset.min,se=sess();
+  if(se){if(se.status==="paused")CORE.setDuration(se,m)}else S.timerMin=m;
+  save();$("durSeg").hidden=true;renderTimer()});
+$("endBtn").onclick=()=>{$("endAsk").hidden=false};
+$("endCancel").onclick=()=>{$("endAsk").hidden=true};
+function endBlock(counted){closeSession(counted);liveSay(counted?"Bloque registrado.":"Bloque descartado.");$("endAsk").hidden=true;renderTimer()}
+$("endKeep").onclick=()=>endBlock(true);$("endDrop").onclick=()=>endBlock(false);
+$("blockAgain").onclick=()=>{archiveSession();$("playBtn").onclick()};
+$("blockDone").onclick=()=>$("doneBtn").onclick();
+$("blockLater").onclick=()=>{archiveSession();$("dropBtn").onclick()};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderTask()});
+window.addEventListener("pageshow",()=>renderTask());
+// sesión pausada al reabrir: nunca se reanuda sola
+$("sessResume").onclick=()=>{const se=S.session,it=se&&byId(se.taskId);if(!it)return;activate(it);
+  const s2=sess();if(s2&&s2.status==="paused"){CORE.resumeSession(s2,Date.now());liveSay("Seguimos con el bloque.")}save();renderTimer()};
+$("sessLater").onclick=()=>{sessDismissed=true;renderTask()};
 let lastDone=null;
 function finishTask(c){
   c.status="done";c.completedAt=Date.now();S.tasksDone++;addXp(XP_TASK);if(S.activeId===c.id)S.activeId=null;lastDone=c.id;
   $("doneText").textContent=`Terminaste "${c.t}". Quedó en tu historial.`;
   $("helpAsk").hidden=false;$("againBtn").textContent="Siguiente";$("oneMoreBtn").hidden=true;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
-  save();clearInterval(tick);tick=null;renderTask(true);
+  closeSession(true);save();renderTask(true);
 }
 $("doneBtn").onclick=()=>{
   const c=active();if(!c)return;const st=c.steps[c.idx];if(!st)return;
-  markActive();S.stepsDone++;addXp(XP_STEP);c.touched=Date.now();$("stuckNote").hidden=true;
+  closeSession(true);markActive();S.stepsDone++;addXp(XP_STEP);c.touched=Date.now();$("stuckNote").hidden=true;
   if(ARRANCA_CORE.toggleStep(c,st.id))return finishTask(c);
-  if(isLow()){lowDoneId=c.id;S.activeId=null;save();clearInterval(tick);tick=null;
+  if(isLow()){lowDoneId=c.id;S.activeId=null;save();
     $("doneText").textContent="Hiciste tu paso de hoy. Con poca energía, eso es suficiente. Tu avance quedó guardado.";
     $("helpAsk").hidden=true;$("againBtn").textContent="Listo por hoy";$("oneMoreBtn").hidden=false;renderTask(true);return}
   save();resetTimer();renderTask();
@@ -749,7 +814,7 @@ $("doneBtn").onclick=()=>{
 $("editStepsBtn").onclick=()=>{const c=active();if(c)openDetail(c.id,false)};
 $("oneMoreBtn").onclick=()=>{if(lowDoneId)startItem(lowDoneId)};
 // 4. Te ayuda a retomar: pausar nunca borra el avance
-$("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
+$("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();checkSession();const se=sess();if(se&&se.status==="running")CORE.pauseSession(se,Date.now());if(endedSess())archiveSession();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
 $("resumeBtn").onclick=()=>{const r=resumable();if(r)startItem(r.id)};
 function resumable(){return openItems().filter(x=>x.started).sort((a,b)=>b.touched-a.touched)[0]||null}
 function bindHelp(){$("helpAsk").querySelectorAll("[data-help]").forEach(b=>b.onclick=()=>{S.helped[b.dataset.help]++;save();
@@ -761,18 +826,26 @@ function renderTask(celebrate){
   const c=active();const showDone=!!celebrate;
   $("doneCard").hidden=!showDone;$("focusCard").hidden=!c;
   const idle=!c&&!showDone;
+  if(!c&&S.session&&S.session.status==="running"){CORE.pauseSession(S.session,Date.now());save()}
+  let ps=!c&&S.session&&S.session.status==="paused"?S.session:null;
+  if(ps){const pi=byId(ps.taskId);if(!pi||pi.status!=="open"){closeSession(false);ps=null}}
+  if(!c&&endedSess())archiveSession();
+  sessShown=!!(idle&&ps&&!sessDismissed);$("sessCard").hidden=!sessShown;
+  if(ps)$("sessNote").textContent=`Quedan ${fmt(CORE.remaining(ps,Date.now()))} en tu bloque. Tu avance sigue aquí.`;
+  if(c&&S.session&&S.session.taskId===c.id&&c.steps[c.idx])S.session.stepId=c.steps[c.idx].id;
   $("captureCard").hidden=!idle||isLow()||dumpOpen;
   $("dumpCard").hidden=!idle||isLow()||!dumpOpen;
   $("energyBtn").hidden=!!c;$("energyBtn").setAttribute("aria-pressed",isLow());
   $("energyBtn").textContent=isLow()?"🔋 Modo poca energía activo · toca para salir":"🔋 Hoy tengo poca energía";
   const r=resumable();
-  $("resumeCard").hidden=!idle||!r;
+  $("resumeCard").hidden=!idle||!r||sessShown;
   if(r){$("resumeTitle").textContent=r.t;const na=ARRANCA_CORE.nextAction(S.inbox,null);$("resumeStep").textContent=na&&na.step?`Tu siguiente paso: ${na.step.s}. Tu avance sigue aquí.`:"Tu avance sigue aquí."}
   if(idle)renderNow();else $("nowCard").hidden=true;
   const n=openItems().length;$("inboxCount").textContent=n?`Tienes ${plural(n)}. Arranca te sugiere uno a la vez.`:"Aún no tienes pendientes. Por ejemplo: «Pagar la luz». Escribe una cosa arriba y pulsa Agregar.";
   if(c){ARRANCA_CORE.nextIdx(c);const st=c.steps[c.idx];$("taskTitle").textContent=c.t;$("stepLabel").textContent=`Paso ${c.idx+1} de ${c.steps.length}`;$("stepText").textContent=st.s;
-    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${x.d?"done":i===c.idx?"now":""}"><span class="dot">${x.d?"✓":i+1}</span><span>${esc(x.s)} <span class="note">· ${x.m} min</span></span></li>`).join("")}
+    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${x.d?"done":i===c.idx?"now":""}"><span class="dot">${x.d?"✓":i+1}</span><span>${esc(x.s)}</span></li>`).join("")}
   $("sStreak").textContent=streak();
+  renderTimer();
 }
 
 // ---------- Progreso ----------
@@ -810,6 +883,7 @@ function pendAct(a,id){
     it.t=t;editingId=null;save();ranking=null;renderPend();return}
   if(a==="archive"||a==="del"){
     if(a==="del"&&it.steps&&it.steps.length&&!confirm("Esta tarea tiene pasos. ¿Eliminarla de forma permanente?"))return;
+    if(S.session&&S.session.taskId===id)closeSession(false);
     if(S.activeId===id){S.activeId=null;resetTimer()}
     if(a==="del")S.inbox=S.inbox.filter(x=>x.id!==id);else it.status="archived";
     ranking=null;suggestPos=0;save();renderAll()}

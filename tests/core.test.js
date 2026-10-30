@@ -108,3 +108,45 @@ test("migrate: pasos v4 reciben id y estado según idx", () => {
   assert.strictEqual(it.idx, 1);
   assert.strictEqual(C.addStep(it, "d").id, 4);
 });
+
+test("sesión: pausar y continuar conservan el tiempo restante", () => {
+  const t0 = 1_000_000;
+  const se = C.startSession({ taskId: 1, stepId: 2, minutes: 5 }, t0);
+  assert.strictEqual(C.remaining(se, t0 + 60_000), 240);
+  C.pauseSession(se, t0 + 60_000);
+  assert.strictEqual(se.status, "paused");
+  assert.strictEqual(C.remaining(se, t0 + 999_999_999), 240);   // en pausa no corre
+  C.resumeSession(se, t0 + 500_000);
+  assert.strictEqual(C.remaining(se, t0 + 530_000), 210);
+});
+
+test("sesión: termina por tiempo y no completa tareas; reloj atrás/adelante", () => {
+  const t0 = 5_000_000;
+  const se = C.startSession({ taskId: 1, minutes: 2 }, t0);
+  assert.strictEqual(C.remaining(se, t0 - 3_600_000), 120);     // reloj atrás: tope en la duración
+  assert.strictEqual(C.syncSession(se, t0 + 119_000), false);
+  assert.strictEqual(C.syncSession(se, t0 + 3_600_000), true);  // reloj adelante / suspensión
+  assert.strictEqual(se.status, "completed");
+  assert.strictEqual(se.endedAt, t0 + 120_000);
+  assert.strictEqual(C.remaining(se, t0 + 9e9), 0);
+});
+
+test("sesión: terminar antes registra o descarta; duración solo en pausa", () => {
+  const t0 = 1000;
+  const a = C.startSession({ minutes: 10 }, t0), b = C.startSession({ minutes: 10 }, t0);
+  C.endSession(a, t0 + 5000, true); C.endSession(b, t0 + 5000, false);
+  assert.strictEqual(a.status, "completed"); assert.strictEqual(b.status, "abandoned");
+  const c = C.startSession({ minutes: 5 }, t0);
+  C.setDuration(c, 15); assert.strictEqual(c.durationSeconds, 300);
+  C.pauseSession(c, t0 + 1000); C.setDuration(c, 15);
+  assert.strictEqual(c.remainingSeconds, 900); assert.strictEqual(C.startSession({ minutes: 7 }, t0).durationSeconds, 300);
+});
+
+test("migrate: sesión válida se conserva, inválida se descarta; sin texto de tareas", () => {
+  const ok = C.startSession({ taskId: 1, stepId: 1, minutes: 5 }, 1000);
+  assert.strictEqual(C.migrate({ session: ok }).session.status, "running");
+  assert.strictEqual(C.migrate({ session: { status: "x" } }).session, null);
+  assert.strictEqual(C.migrate({ session: { status: "running", durationSeconds: 300 } }).session.status, "paused");
+  assert.strictEqual(C.migrate({ timerMin: 7 }).timerMin, null);
+  assert.deepStrictEqual(Object.keys(ok).sort(), ["durationSeconds","endedAt","endsAt","id","pausedAt","remainingSeconds","startedAt","status","stepId","taskId"]);
+});

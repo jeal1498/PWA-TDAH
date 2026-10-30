@@ -1,5 +1,5 @@
 // Service worker: guarda la app para usarla sin conexión
-const CACHE = "arranca-v5";
+const CACHE = "arranca-v6";
 const ASSETS = ["./", "./index.html", "./core.js", "./prompts.js", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
