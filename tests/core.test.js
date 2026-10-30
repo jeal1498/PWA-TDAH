@@ -48,3 +48,63 @@ test("sortHistory: más reciente primero", () => {
   const items = [{ id: 1, status: "done", completedAt: 1 }, { id: 2, status: "done", completedAt: 9 }, { id: 3, status: "open" }];
   assert.deepStrictEqual(C.sortHistory(items).map(x => x.id), [2, 1]);
 });
+
+const mk = (extra = {}) => Object.assign({ id: 1, t: "T", status: "open", started: true, added: 1, touched: 1, steps: null }, extra);
+
+test("suggestSteps: granularidad cambia la cantidad; sin duplicados ni pasos vacíos", () => {
+  const n = g => C.suggestSteps("Preparar informe", g);
+  assert.ok(n("few").length >= 3 && n("few").length <= 4);
+  assert.ok(n("balanced").length >= 4 && n("balanced").length <= 6);
+  assert.ok(n("detailed").length >= 6 && n("detailed").length <= 10);
+  assert.strictEqual(n().length, n("balanced").length);
+  const all = n("detailed").map(x => x.s);
+  assert.strictEqual(new Set(all).size, all.length);
+  assert.deepStrictEqual(C.suggestSteps("   "), []);
+  assert.ok(C.suggestSteps("x".repeat(200))[0].s.length < 90);
+});
+
+test("validateStep: rechaza vacío, vago y duplicado", () => {
+  const steps = [{ id: 1, s: "Abrir el correo" }];
+  assert.strictEqual(C.validateStep(steps, "  ").reason, "vacio");
+  assert.strictEqual(C.validateStep(steps, "Hacer la tarea").reason, "vago");
+  assert.strictEqual(C.validateStep(steps, "abrir el correo").reason, "duplicado");
+  assert.strictEqual(C.validateStep(steps, "abrir el correo", 1).ok, true);
+  assert.strictEqual(C.validateStep(steps, " Escribir asunto ").title, "Escribir asunto");
+});
+
+test("pasos: agregar, editar, reordenar, eliminar y completar fuera de orden", () => {
+  const it = mk();
+  const a = C.addStep(it, "A"), b = C.addStep(it, "B"), c = C.addStep(it, "C");
+  assert.strictEqual(it.idx, 0);
+  C.moveStep(it, c.id, -1); assert.deepStrictEqual(it.steps.map(x => x.s), ["A", "C", "B"]);
+  assert.strictEqual(C.moveStep(it, a.id, -1), false);
+  C.renameStep(it, b.id, "B2");
+  assert.strictEqual(C.toggleStep(it, b.id), false);           // fuera de orden
+  assert.strictEqual(it.idx, 0);
+  C.toggleStep(it, a.id); assert.strictEqual(it.idx, 1);        // siguiente = C
+  assert.strictEqual(C.toggleStep(it, c.id), true);             // todos hechos
+  C.toggleStep(it, c.id); assert.strictEqual(it.steps[it.idx].s, "C"); // deshacer
+  C.removeStep(it, c.id); assert.strictEqual(it.idx, 2);
+});
+
+test("siguiente acción: paso elegido > primer pendiente > tarea sin pasos > null", () => {
+  const t1 = mk({ id: 1, touched: 9 }); C.addStep(t1, "A"); const b = C.addStep(t1, "B");
+  const t2 = mk({ id: 2, touched: 5 });
+  let r = C.nextAction([t1, t2], 1);
+  assert.strictEqual(r.step.s, "A");
+  t1.sel = b.id; r = C.nextAction([t1, t2], 1);
+  assert.strictEqual(r.step.s, "B"); assert.strictEqual(r.explicit, true);
+  C.toggleStep(t1, b.id); C.toggleStep(t1, t1.steps[0].id);    // todo hecho
+  t1.status = "done";
+  r = C.nextAction([t1, t2], null);
+  assert.strictEqual(r.task.id, 2); assert.strictEqual(r.step, null);
+  assert.strictEqual(C.nextAction([mk({ started: false })], null), null);
+});
+
+test("migrate: pasos v4 reciben id y estado según idx", () => {
+  const S = C.migrate({ inbox: [{ id: 1, t: "A", steps: [{ s: "a", m: 2 }, { s: "b", m: 2 }, { s: "c", m: 2 }], idx: 1, status: "open", started: true }] });
+  const it = S.inbox[0];
+  assert.deepStrictEqual(it.steps.map(x => x.d), [true, false, false]);
+  assert.strictEqual(it.idx, 1);
+  assert.strictEqual(C.addStep(it, "d").id, 4);
+});

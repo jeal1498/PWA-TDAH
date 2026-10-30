@@ -194,6 +194,7 @@ input[aria-invalid=true]{border-color:var(--bad)}
 .trow .acts{display:flex;gap:8px;flex-wrap:wrap}
 .trow .acts button{border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;min-height:44px;font-size:15px}
 .trow .acts button.go{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.trow.sdone input{text-decoration:line-through;color:var(--muted)}
 .step-text,.trow .tt,#nowText,#taskTitle{overflow-wrap:anywhere}
 @media (prefers-reduced-motion: reduce){.bubble{animation:none}.bar i,.node .btn,.ring .rbar{transition:none}}
 </style>
@@ -274,6 +275,7 @@ input[aria-invalid=true]{border-color:var(--bad)}
     <button class="stuck" id="stuckBtn">No puedo empezar</button>
     <span class="note" id="stuckNote" hidden></span>
     <ul class="steps" id="stepList"></ul>
+    <button class="ghost" id="editStepsBtn" style="width:100%;font-weight:400;font-size:15px">Ver y editar pasos</button>
     <button class="ghost" id="dropBtn" style="width:100%;font-weight:400;font-size:15px">Pausar y volver después</button>
   </div>
   <div class="card focus" id="doneCard" hidden>
@@ -286,6 +288,35 @@ input[aria-invalid=true]{border-color:var(--bad)}
     <button class="primary" id="againBtn">Siguiente</button>
     <button class="ghost" id="oneMoreBtn" style="width:100%" hidden>Tengo para un paso más</button>
   </div>
+</section>
+
+<!-- DETALLE -->
+<section class="wrap view" id="view-detalle" hidden>
+  <button class="ghost" id="detBack">← Volver a pendientes</button>
+  <h2>Divide la tarea</h2>
+  <label class="sr" for="detTitle">Título de la tarea</label>
+  <input type="text" id="detTitle">
+  <div class="card now">
+    <span class="label">Siguiente acción</span>
+    <div class="step-text" id="detNextText"></div>
+  </div>
+  <span class="label" id="granLbl">Nivel de detalle</span>
+  <div class="seg" role="group" aria-labelledby="granLbl">
+    <button data-g="few" aria-pressed="false">Pocos pasos</button>
+    <button data-g="balanced" aria-pressed="true">Equilibrado</button>
+    <button data-g="detailed" aria-pressed="false">Muy detallado</button>
+  </div>
+  <span class="note">Son sugerencias editables, no inteligencia artificial. Cámbialas como quieras.</span>
+  <button class="ghost" id="detGen">Generar sugerencias de nuevo</button>
+  <ul class="tlist" id="detSteps"></ul>
+  <form class="capform" id="detAddForm" novalidate>
+    <label class="sr" for="detAdd">Nuevo paso</label>
+    <input type="text" id="detAdd" placeholder="Escribe un paso concreto…" autocomplete="off">
+    <button class="ghost" type="submit">Agregar paso</button>
+  </form>
+  <span class="note" id="detMsg" role="status" aria-live="polite"></span>
+  <button class="primary" id="detStart">Empezar</button>
+  <button class="ghost" id="detWhole">Empezar sin dividir</button>
 </section>
 
 <!-- PENDIENTES -->
@@ -464,7 +495,7 @@ function addXp(n){S.xp+=n;save();$("sXp").textContent=S.xp}
 
 // ---------- Pestañas ----------
 function go(v){document.querySelectorAll("nav [data-view]").forEach(x=>x.setAttribute("aria-selected",x.dataset.view===v));
-  ["hacer","pendientes","historial","aprender","progreso"].forEach(x=>$("view-"+x).hidden=x!==v);window.scrollTo(0,0);renderAll()}
+  ["hacer","detalle","pendientes","historial","aprender","progreso"].forEach(x=>$("view-"+x).hidden=x!==v);window.scrollTo(0,0);renderAll()}
 document.querySelectorAll("nav [data-view]").forEach(b=>b.onclick=()=>go(b.dataset.view));
 
 // ---------- Camino ----------
@@ -598,7 +629,6 @@ async function askAI(kind,payload){
     return (await r.json()).result??null;
   }catch(e){return null}
 }
-const fallbackSteps=t=>[{s:"Junta lo que necesitas para: "+t,m:2},{s:"Haz solo la parte más fácil",m:3},{s:"Sigue 5 minutos más, sin juzgarte",m:5},{s:"Revisa lo que hiciste y ciérralo",m:3}];
 // Modo día sin energía: dura solo el día de hoy
 const isLow=()=>S.lowDay===today();
 $("energyBtn").onclick=()=>{S.lowDay=isLow()?null:today();save();renderTask()};
@@ -650,7 +680,7 @@ async function rank(){
 }
 function current(){if(!ranking)ranking=heuristicRank();ranking=ranking.filter(r=>byId(r.id)?.status==="open");const rid=resumable()?.id;const valid=ranking.filter(r=>r.id!==rid);if(!valid.length)return null;return valid[suggestPos%valid.length]}
 function renderNow(){
-  const c=current();$("nowCard").hidden=!c||!!active();
+  const c=current();$("nowCard").hidden=!c||!!active()||!!resumable(); // una sola acción principal a la vez
   if(!c)return;const it=byId(c.id);
   $("nowText").textContent=it.t;$("nowWhy").textContent=c.why;
   $("nowStart").textContent=isLow()?"Hacer solo 2 minutos":it.started?"Retomar esta":"Empezar esta";
@@ -667,25 +697,23 @@ $("nowPick").onclick=()=>{
 $("nowStart").onclick=()=>{const c=current();if(c)startItem(c.id)};
 
 // 3. Te acompaña a empezar
-async function startItem(id){
+function startItem(id){
   const it=byId(id);if(!it)return;
-  if(!it.started){
-    const used=S.tasksToday[today()]||0;
-    const b=$("nowStart");b.disabled=true;b.textContent="Preparando pasos mini…";
-    const res=await askAI("steps",{task:it.t});
-    b.disabled=false;
-    let steps=Array.isArray(res)?res.filter(x=>x&&x.s).slice(0,6).map(x=>({s:String(x.s),m:Math.min(5,Math.max(2,Number(x.m)||3))})):null;
-    it.steps=steps&&steps.length?steps:fallbackSteps(it.t);
-    it.started=true;S.tasksStarted++;S.tasksToday[today()]=used+1;
-  }
-  it.touched=Date.now();S.activeId=id;$("pickList").hidden=true;save();resetTimer();renderTask();window.scrollTo(0,0);
+  if(!it.steps||!it.steps.length){
+    if(isLow()){genSteps(it);activate(it)}else openDetail(id,true);
+    return}
+  activate(it);
+}
+function activate(it){
+  if(!it.started){it.started=true;S.tasksStarted++;S.tasksToday[today()]=(S.tasksToday[today()]||0)+1}
+  it.touched=Date.now();S.activeId=it.id;ARRANCA_CORE.nextIdx(it);$("pickList").hidden=true;save();resetTimer();go("hacer");
 }
 async function stuck(){
   const c=active();if(!c)return;const stp=c.steps[c.idx];
   const b=$("stuckBtn");b.disabled=true;b.textContent="Buscando algo más fácil…";
   const res=await askAI("mini",{step:stp.s,task:c.t});
   const mini=res&&res.s?{s:String(res.s),f:String(res.f||"")}:{s:"Solo ponte de pie y acércate a donde harás esto",f:"Empezar pequeño también cuenta."};
-  c.steps.splice(c.idx,0,{s:mini.s,m:1});save();
+  const ns=ARRANCA_CORE.addStep(c,mini.s,1);c.steps.pop();c.steps.splice(c.idx,0,ns);c.sel=ns.id;ARRANCA_CORE.nextIdx(c);c.gen=false;save();
   $("stuckNote").textContent=mini.f;$("stuckNote").hidden=false;
   b.disabled=false;b.textContent="No puedo empezar";resetTimer();renderTask();
 }
@@ -703,17 +731,22 @@ $("playBtn").onclick=()=>{
   tick=setInterval(()=>{left--;drawRing();if(left<=0){clearInterval(tick);tick=null;tot=left=0;$("timeHint").textContent="¡tiempo! ¿lo terminaste?";$("playBtn").textContent="+2 min"}},1000);
 };
 let lastDone=null;
+function finishTask(c){
+  c.status="done";c.completedAt=Date.now();S.tasksDone++;addXp(XP_TASK);if(S.activeId===c.id)S.activeId=null;lastDone=c.id;
+  $("doneText").textContent=`Terminaste "${c.t}". Quedó en tu historial.`;
+  $("helpAsk").hidden=false;$("againBtn").textContent="Siguiente";$("oneMoreBtn").hidden=true;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
+  save();clearInterval(tick);tick=null;renderTask(true);
+}
 $("doneBtn").onclick=()=>{
-  const c=active();if(!c)return;markActive();S.stepsDone++;addXp(XP_STEP);c.idx++;c.touched=Date.now();$("stuckNote").hidden=true;
-  if(c.idx>=c.steps.length){c.status="done";c.completedAt=Date.now();S.tasksDone++;addXp(XP_TASK);S.activeId=null;lastDone=c.id;
-    $("doneText").textContent=`Terminaste "${c.t}" en ${c.steps.length} pasos mini. +${XP_TASK} XP extra. Date tu premio.`;
-    $("helpAsk").hidden=false;$("againBtn").textContent="Siguiente";$("oneMoreBtn").hidden=true;$("helpAsk").innerHTML=`<span class="label">¿Arranca te ayudó con esta tarea?</span><div class="row"><button class="ghost" data-help="yes">👍 Sí</button><button class="ghost" data-help="no">👎 No mucho</button></div>`;bindHelp();
-    save();clearInterval(tick);tick=null;renderTask(true);return}
-  if(isLow()){lowDoneId=c.id;c.touched=Date.now();S.activeId=null;save();clearInterval(tick);tick=null;
+  const c=active();if(!c)return;const st=c.steps[c.idx];if(!st)return;
+  markActive();S.stepsDone++;addXp(XP_STEP);c.touched=Date.now();$("stuckNote").hidden=true;
+  if(ARRANCA_CORE.toggleStep(c,st.id))return finishTask(c);
+  if(isLow()){lowDoneId=c.id;S.activeId=null;save();clearInterval(tick);tick=null;
     $("doneText").textContent="Hiciste tu paso de hoy. Con poca energía, eso es suficiente. Tu avance quedó guardado.";
     $("helpAsk").hidden=true;$("againBtn").textContent="Listo por hoy";$("oneMoreBtn").hidden=false;renderTask(true);return}
   save();resetTimer();renderTask();
 };
+$("editStepsBtn").onclick=()=>{const c=active();if(c)openDetail(c.id,false)};
 $("oneMoreBtn").onclick=()=>{if(lowDoneId)startItem(lowDoneId)};
 // 4. Te ayuda a retomar: pausar nunca borra el avance
 $("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
@@ -734,11 +767,11 @@ function renderTask(celebrate){
   $("energyBtn").textContent=isLow()?"🔋 Modo poca energía activo · toca para salir":"🔋 Hoy tengo poca energía";
   const r=resumable();
   $("resumeCard").hidden=!idle||!r;
-  if(r){$("resumeTitle").textContent=r.t;$("resumeStep").textContent=`Vas en el paso ${r.idx+1} de ${r.steps.length}. Tu avance sigue aquí.`}
+  if(r){$("resumeTitle").textContent=r.t;const na=ARRANCA_CORE.nextAction(S.inbox,null);$("resumeStep").textContent=na&&na.step?`Tu siguiente paso: ${na.step.s}. Tu avance sigue aquí.`:"Tu avance sigue aquí."}
   if(idle)renderNow();else $("nowCard").hidden=true;
   const n=openItems().length;$("inboxCount").textContent=n?`Tienes ${plural(n)}. Arranca te sugiere uno a la vez.`:"Aún no tienes pendientes. Por ejemplo: «Pagar la luz». Escribe una cosa arriba y pulsa Agregar.";
-  if(c){const st=c.steps[c.idx];$("taskTitle").textContent=c.t;$("stepLabel").textContent=`Paso ${c.idx+1} de ${c.steps.length}`;$("stepText").textContent=st.s;
-    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${i<c.idx?"done":i===c.idx?"now":""}"><span class="dot">${i<c.idx?"✓":i+1}</span><span>${esc(x.s)} <span class="note">· ${x.m} min</span></span></li>`).join("")}
+  if(c){ARRANCA_CORE.nextIdx(c);const st=c.steps[c.idx];$("taskTitle").textContent=c.t;$("stepLabel").textContent=`Paso ${c.idx+1} de ${c.steps.length}`;$("stepText").textContent=st.s;
+    $("stepList").innerHTML=c.steps.map((x,i)=>`<li class="${x.d?"done":i===c.idx?"now":""}"><span class="dot">${x.d?"✓":i+1}</span><span>${esc(x.s)} <span class="note">· ${x.m} min</span></span></li>`).join("")}
   $("sStreak").textContent=streak();
 }
 
@@ -763,13 +796,14 @@ function renderPend(){
     const st=x.started?`En progreso${n?` · paso ${Math.min(x.idx+1,n)} de ${n}`:""}`:"Pendiente";
     const head=editingId===x.id
       ?`<label class="sr" for="editInp">Editar título</label><input type="text" id="editInp" value="${e}"><div class="acts"><button class="go" data-a="save" data-id="${x.id}">Guardar</button><button data-a="cancel" data-id="${x.id}">Cancelar</button></div>`
-      :`<span class="tt">${e}</span><span class="note">${st}</span><div class="acts"><button class="go" data-a="open" data-id="${x.id}" aria-label="Abrir: ${e}">${x.started?"Retomar":"Empezar"}</button><button data-a="edit" data-id="${x.id}" aria-label="Editar título: ${e}">Editar</button><button data-a="archive" data-id="${x.id}" aria-label="Archivar: ${e}">Archivar</button><button data-a="del" data-id="${x.id}" aria-label="Eliminar: ${e}">Eliminar</button></div>`;
+      :`<span class="tt">${e}</span><span class="note">${st}</span><div class="acts"><button class="go" data-a="open" data-id="${x.id}" aria-label="Abrir: ${e}">${x.started?"Retomar":"Empezar"}</button><button data-a="steps" data-id="${x.id}" aria-label="Dividir en pasos: ${e}">Pasos</button><button data-a="edit" data-id="${x.id}" aria-label="Editar título: ${e}">Editar</button><button data-a="archive" data-id="${x.id}" aria-label="Archivar: ${e}">Archivar</button><button data-a="del" data-id="${x.id}" aria-label="Eliminar: ${e}">Eliminar</button></div>`;
     return `<li class="trow">${head}</li>`}).join("");
   const inp=$("editInp");if(inp){inp.focus();inp.onkeydown=ev=>{if(ev.key==="Enter")pendAct("save",editingId);if(ev.key==="Escape")pendAct("cancel",editingId)}}
 }
 function pendAct(a,id){
   const it=byId(id);if(!it)return;
-  if(a==="open"){go("hacer");startItem(id);return}
+  if(a==="open"){startItem(id);return}
+  if(a==="steps"){openDetail(id,true);return}
   if(a==="edit"){editingId=id;renderPend();return}
   if(a==="cancel"){editingId=null;renderPend();return}
   if(a==="save"){const t=ARRANCA_CORE.cleanTitle($("editInp").value);if(!t){$("editInp").setAttribute("aria-invalid","true");return}
@@ -790,7 +824,79 @@ function renderHist(){
     :`<li class="note">Aquí aparecerán las tareas que termines. Tu progreso siempre queda guardado.</li>`;
 }
 
-function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp;renderPath();renderTask();renderProgress();renderPend();renderHist()}
+// ---------- Detalle y descomposición ----------
+let detailId=null;
+const STEP_MSG={vacio:"Un paso no puede quedar vacío.",vago:"Hazlo más concreto: ¿qué harías primero, con las manos o en la pantalla?",duplicado:"Ya tienes un paso igual."};
+function genSteps(it){
+  try{const l=ARRANCA_CORE.suggestSteps(it.t,it.gran);if(!l.length)throw new Error("vacío");
+    ARRANCA_CORE.setSteps(it,l);it.gen=true;save();return true}
+  catch(e){$("detMsg").textContent="No pude generar sugerencias. Puedes escribir tus pasos a mano.";return false}
+}
+function openDetail(id,fresh){
+  const it=byId(id);if(!it)return;detailId=id;$("detMsg").textContent="";
+  if(fresh&&(!it.steps||!it.steps.length))genSteps(it);
+  go("detalle");
+}
+function renderDetail(){
+  const it=detailId&&byId(detailId);if(!it||$("view-detalle").hidden)return;
+  const i=ARRANCA_CORE.nextIdx(it),steps=it.steps||[];
+  if(document.activeElement!==$("detTitle"))$("detTitle").value=it.t;
+  $("detNextText").textContent=steps[i]?steps[i].s:"Agrega un paso o empieza sin dividir.";
+  document.querySelectorAll("#view-detalle [data-g]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===(it.gran||"balanced")));
+  $("detSteps").innerHTML=steps.map((x,k)=>`<li class="trow ${x.d?"sdone":""}"><label class="sr" for="st${x.id}">Paso ${k+1}</label>
+    <input type="text" id="st${x.id}" data-id="${x.id}" value="${esc(x.s)}">
+    <div class="acts"><button data-a="tog" data-id="${x.id}" aria-pressed="${x.d}">${x.d?"Hecho ✓":"Marcar hecho"}</button>
+    ${x.d?"":`<button data-a="sel" data-id="${x.id}" aria-pressed="${it.sel===x.id}">${it.sel===x.id?"Va primero ✓":"Hacer primero"}</button>`}
+    <button data-a="up" data-id="${x.id}" aria-label="Subir paso ${k+1}"${k===0?" disabled":""}>Subir</button>
+    <button data-a="dn" data-id="${x.id}" aria-label="Bajar paso ${k+1}"${k===steps.length-1?" disabled":""}>Bajar</button>
+    <button data-a="rm" data-id="${x.id}" aria-label="Eliminar paso ${k+1}">Eliminar</button></div></li>`).join("");
+}
+function stepsChanged(it,before,keepGen){
+  if(!keepGen)it.gen=false;
+  const n=it.steps.length;
+  if(n&&it.steps.every(x=>x.d)&&it.status==="open"){save();go("hacer");finishTask(it);return}
+  if(!n&&S.activeId===it.id)S.activeId=null;
+  save();if(S.activeId===it.id&&it.steps[it.idx]?.id!==before)resetTimer();
+  renderDetail();renderTask();
+}
+$("detBack").onclick=()=>go("pendientes");
+$("detTitle").onchange=()=>{const it=byId(detailId),t=ARRANCA_CORE.cleanTitle($("detTitle").value);
+  if(!it)return;if(!t){$("detTitle").value=it.t;return}it.t=t;ranking=null;save()};
+document.querySelectorAll("#view-detalle [data-g]").forEach(b=>b.onclick=()=>{
+  const it=byId(detailId);if(!it)return;it.gran=b.dataset.g;
+  if(it.gen&&!(it.steps||[]).some(x=>x.d)){genSteps(it);$("detMsg").textContent=""}
+  else{save();$("detMsg").textContent="Nivel guardado. Pulsa «Generar sugerencias de nuevo» para aplicarlo a tus pasos."}
+  renderDetail()});
+$("detGen").onclick=()=>{const it=byId(detailId);if(!it)return;
+  if(it.steps&&it.steps.length&&(!it.gen||it.steps.some(x=>x.d))&&!confirm("Esto reemplaza tus pasos actuales, incluidos los ya hechos. ¿Continuar?"))return;
+  const before=it.steps&&it.steps[it.idx]?.id;$("detMsg").textContent="";
+  if(genSteps(it))stepsChanged(it,before,true)};
+$("detAddForm").onsubmit=e=>{e.preventDefault();const it=byId(detailId);if(!it)return;
+  const v=ARRANCA_CORE.validateStep(it.steps,$("detAdd").value);
+  if(!v.ok){$("detMsg").textContent=STEP_MSG[v.reason];$("detAdd").focus();return}
+  const before=it.steps&&it.steps[it.idx]?.id;ARRANCA_CORE.addStep(it,v.title,3);$("detAdd").value="";$("detMsg").textContent="Paso agregado.";
+  stepsChanged(it,before);$("detAdd").focus()};
+$("detSteps").onchange=e=>{const inp=e.target.closest("input[data-id]"),it=byId(detailId);if(!inp||!it)return;
+  const id=+inp.dataset.id,v=ARRANCA_CORE.validateStep(it.steps,inp.value,id);
+  if(!v.ok){$("detMsg").textContent=STEP_MSG[v.reason];renderDetail();return}
+  ARRANCA_CORE.renameStep(it,id,v.title);$("detMsg").textContent="";stepsChanged(it,it.steps[it.idx]?.id)};
+$("detSteps").onclick=e=>{const b=e.target.closest("button[data-a]"),it=byId(detailId);if(!b||!it)return;
+  const id=+b.dataset.id,a=b.dataset.a,before=it.steps[it.idx]?.id;$("detMsg").textContent="";
+  if(a==="tog")ARRANCA_CORE.toggleStep(it,id);
+  else if(a==="sel"){it.sel=it.sel===id?null:id;ARRANCA_CORE.nextIdx(it)}
+  else if(a==="up")ARRANCA_CORE.moveStep(it,id,-1);
+  else if(a==="dn")ARRANCA_CORE.moveStep(it,id,1);
+  else if(a==="rm")ARRANCA_CORE.removeStep(it,id);
+  stepsChanged(it,before,true)};
+$("detStart").onclick=()=>{const it=byId(detailId);if(!it)return;
+  if(!it.steps||!it.steps.length)return wholeTask(it);
+  activate(it)};
+function wholeTask(it){ARRANCA_CORE.setSteps(it,[{s:it.t,m:5}]);it.gen=false;activate(it)}
+$("detWhole").onclick=()=>{const it=byId(detailId);if(!it)return;
+  if(it.steps&&it.steps.length&&!confirm("Esto reemplaza tus pasos por uno solo con el título de la tarea. ¿Continuar?"))return;
+  wholeTask(it)};
+
+function renderAll(){$("sStreak").textContent=streak();$("sXp").textContent=S.xp;renderPath();renderTask();renderProgress();renderPend();renderHist();renderDetail()}
 (function welcome(){
   const startOf=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
   const gap=S.lastSeen?Math.round((startOf(Date.now())-startOf(S.lastSeen))/864e5):0;

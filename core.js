@@ -22,6 +22,12 @@
       if (!["open", "done", "archived"].includes(o.status)) o.status = "open";
       if (!Array.isArray(o.steps)) o.steps = null;
       if (!o.source) o.source = "quick_capture";
+      if (o.steps) {
+        const idx = o.idx || 0;
+        o.steps = o.steps.map((st, i) => Object.assign({}, st, { id: st.id || i + 1, d: st.d != null ? !!st.d : (o.status === "done" || i < idx) }));
+        o.stepSeq = Math.max(o.stepSeq || 0, ...o.steps.map(x => x.id));
+        nextIdx(o);
+      }
       if (o.status === "done" && !o.completedAt) o.completedAt = o.touched || o.added || Date.now();
       return o;
     });
@@ -36,7 +42,79 @@
   const sortHistory = items => items.filter(x => x.status === "done").slice()
     .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
-  const api = { SCHEMA, defaultState, cleanTitle, parseLines, migrate, sortPending, sortHistory };
+  // ---------- Pasos ----------
+  const GRAN = { few: [0, 3, 4, 7], balanced: [0, 1, 3, 4, 7, 8], detailed: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
+  const short = t => t.length > 40 ? t.slice(0, 39).trimEnd() + "…" : t;
+
+  // Sugerencias deterministas (no es IA): pasos que empiezan con verbo y describen algo observable.
+  function suggestSteps(title, gran) {
+    const t = short(cleanTitle(title));
+    if (!t) return [];
+    const T = [
+      ["Junta lo que necesitas para: " + t, 2], ["Despeja un lugar para trabajar en: " + t, 3],
+      ["Anota cuál es la primera parte de: " + t, 2], ["Haz solo la parte más fácil de: " + t, 3],
+      ["Avanza 5 minutos más con: " + t, 5], ["Anota qué falta de: " + t, 2],
+      ["Haz la siguiente parte de: " + t, 5], ["Revisa lo que ya hiciste de: " + t, 3],
+      ["Guarda lo que usaste y cierra: " + t, 2]
+    ];
+    return (GRAN[gran] || GRAN.balanced).map(i => ({ s: T[i][0], m: T[i][1] }));
+  }
+
+  const VAGUE = /^(hacer|haz|terminar|termina|completar|completa|trabajar|trabaja)( la tarea| todo| esto| eso)?\.?$/i;
+  // Un paso nuevo no puede ser vacío, vago ni repetir otro paso de la misma tarea.
+  function validateStep(steps, title, exceptId) {
+    const t = cleanTitle(title);
+    if (!t) return { ok: false, reason: "vacio" };
+    if (VAGUE.test(t)) return { ok: false, reason: "vago" };
+    if ((steps || []).some(x => x.id !== exceptId && x.s.toLowerCase() === t.toLowerCase())) return { ok: false, reason: "duplicado" };
+    return { ok: true, title: t };
+  }
+
+  // Posición de la siguiente acción: el paso elegido (si sigue pendiente) o el primero pendiente.
+  function nextIdx(it) {
+    const st = it.steps || [];
+    let i = -1;
+    if (it.sel != null) i = st.findIndex(x => x.id === it.sel && !x.d);
+    if (i < 0) { it.sel = null; i = st.findIndex(x => !x.d); if (i < 0) i = st.length; }
+    it.idx = i;
+    return i;
+  }
+
+  const addStep = (it, title, m) => {
+    it.steps = it.steps || [];
+    const st = { id: (it.stepSeq = (it.stepSeq || 0) + 1), s: title, m: m || 3, d: false };
+    it.steps.push(st); nextIdx(it); return st;
+  };
+  const setSteps = (it, list) => { it.steps = []; it.sel = null; list.forEach(x => addStep(it, x.s, x.m)); return it.steps; };
+  const renameStep = (it, id, title) => { const st = it.steps.find(x => x.id === id); if (st) st.s = title; return st; };
+  const removeStep = (it, id) => { it.steps = it.steps.filter(x => x.id !== id); nextIdx(it); };
+  const moveStep = (it, id, dir) => {
+    const i = it.steps.findIndex(x => x.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= it.steps.length) return false;
+    [it.steps[i], it.steps[j]] = [it.steps[j], it.steps[i]]; nextIdx(it); return true;
+  };
+  // Marca o desmarca un paso (en cualquier orden). Devuelve true si ya no queda ninguno pendiente.
+  function toggleStep(it, id, now) {
+    const st = it.steps.find(x => x.id === id);
+    if (st) { st.d = !st.d; if (st.d) st.completedAt = now || Date.now(); else delete st.completedAt; }
+    nextIdx(it);
+    return it.steps.length > 0 && it.steps.every(x => x.d);
+  }
+
+  // Siguiente acción: paso elegido > primer paso pendiente de la tarea activa > tarea activa sin pasos > nada.
+  function nextAction(items, activeId) {
+    const act = sortPending(items.filter(x => x.started));
+    const cur = act.find(x => x.id === activeId) || act[0];
+    if (cur && cur.steps && cur.steps.length) {
+      const i = nextIdx(cur);
+      if (i < cur.steps.length) return { task: cur, step: cur.steps[i], index: i, explicit: cur.sel != null };
+    }
+    const bare = act.find(x => !x.steps || !x.steps.length);
+    return bare ? { task: bare, step: null } : null;
+  }
+
+  const api = { SCHEMA, defaultState, cleanTitle, parseLines, migrate, sortPending, sortHistory,
+    suggestSteps, validateStep, nextIdx, addStep, setSteps, renameStep, removeStep, moveStep, toggleStep, nextAction };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ARRANCA_CORE = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
