@@ -17,6 +17,7 @@ El texto de tus tareas no sale del dispositivo. La IA remota está **apagada** (
 - Esquema v5 en `localStorage` (`arranca-v5`). Al abrir, migra `arranca-v4` y la deja intacta como respaldo. Si un dato está corrupto se guarda copia en `arranca-v5-corrupto`.
 - Temporizador de 2/5/10/15 min (5 por defecto) calculado con marcas de tiempo; la sesión (`session`/`sessions`) guarda solo ids y números, nunca texto, y sobrevive a recargas.
 - Lógica pura en `core.js`. Pruebas: `npm test` (`node:test`, sin dependencias).
+- Analítica: no hay ninguna. Si se añade, debe ser opcional, con consentimiento y sin títulos, pasos ni notas (solo tipo de evento, duración y conteos).
 - Aprender, XP, racha y Premium siguen en el código pero ocultos de la navegación principal.
 
 ### Publicar en Vercel

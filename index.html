@@ -74,7 +74,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* hacer */
 textarea{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%;box-sizing:border-box;resize:none}
-textarea:focus{outline:none;border-color:var(--calm)}
+textarea:focus,input[type=text]:focus{outline:3px solid var(--calm);outline-offset:2px;border-color:var(--calm)}
 .examples{display:flex;gap:8px;flex-wrap:wrap}
 .chip{background:var(--bg);border:1px solid var(--line);font-size:14px;padding:6px 12px;border-radius:999px}
 .primary{width:100%;border-radius:14px;padding:15px;font-weight:700;font-size:18px;background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-deep)}
@@ -111,7 +111,7 @@ textarea:focus{outline:none;border-color:var(--calm)}
 .welcome-row{display:flex;gap:12px;align-items:flex-end}
 .welcome-row p{margin:0;font-size:15px}
 .welcome-row b{font-family:var(--display);font-size:20px}
-.energy-btn{align-self:flex-start;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:15px;background:var(--surface)}
+.energy-btn{align-self:flex-start;min-height:44px;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:15px;background:var(--surface)}
 .energy-btn[aria-pressed="true"]{background:var(--calm-soft);border-color:var(--calm);color:var(--calm);font-weight:700}
 .lowmsg{margin:0;font-size:15px;color:var(--calm);font-weight:700}
 
@@ -181,11 +181,11 @@ nav button[aria-selected="true"]{color:var(--accent)}
 /* captura, pendientes e historial */
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%;box-sizing:border-box;min-height:48px}
-input[type=text]:focus{outline:none;border-color:var(--calm)}
+
 input[aria-invalid=true]{border-color:var(--bad)}
 .capform{display:flex;flex-direction:column;gap:10px}
 .errbar{background:var(--bad-soft);border-bottom:1px solid var(--bad);padding:10px 16px;font-size:15px;text-align:center}
-.seg{display:flex;gap:8px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
 .seg button{border:1.5px solid var(--line);border-radius:999px;padding:8px 16px;min-height:44px;font-weight:700}
 .seg button[aria-pressed="true"]{background:var(--calm-soft);border-color:var(--calm);color:var(--calm)}
 .tlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
