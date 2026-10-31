@@ -259,7 +259,7 @@ input[aria-invalid=true]{border-color:var(--bad)}
   </div>
 
   <div class="card now" id="nowCard" hidden>
-    <span class="label" id="nowLabel">Ahora, solo esto</span>
+    <span class="label" id="nowLabel">Tu siguiente paso</span>
     <div class="step-text" id="nowText"></div>
     <p class="why" id="nowWhy"></p>
     <button class="primary" id="nowStart">Empezar esta</button>
@@ -694,10 +694,8 @@ $("dumpBtn").onclick=()=>{
 // 2. Decide qué hacer ahora: una sola acción, con su porqué
 let ranking=null,suggestPos=0,ranking_busy=false;
 function heuristicRank(){
-  const o=openItems();
-  const started=o.filter(x=>x.started).sort((a,b)=>b.touched-a.touched).map(x=>({id:x.id,why:"Ya la empezaste: retomarla cuesta menos que arrancar otra."}));
-  const rest=o.filter(x=>!x.started).sort((a,b)=>a.added-b.added).map((x,i)=>({id:x.id,why:i===0?"Es la que llevas más tiempo cargando en la cabeza.":"Otra opción para empezar con algo concreto."}));
-  return [...started,...rest];
+  // Sin puntuaciones opacas: primero lo empezado, luego lo más reciente (mismo orden que Pendientes).
+  return ARRANCA_CORE.sortPending(S.inbox).map(x=>({id:x.id,why:x.started?"Ya la empezaste: tu avance sigue aquí.":"Vamos con un paso pequeño."}));
 }
 async function rank(){
   const o=openItems();if(o.length<2||ranking_busy){ranking=heuristicRank();renderNow();return}
@@ -715,7 +713,7 @@ function renderNow(){
   if(!c)return;const it=byId(c.id);
   $("nowText").textContent=it.t;$("nowWhy").textContent=c.why;
   $("nowStart").textContent=isLow()?"Hacer solo 2 minutos":it.started?"Retomar esta":"Empezar esta";
-  $("nowLabel").textContent=isLow()?"Hoy, solo un paso":"Ahora, solo esto";
+  $("nowLabel").textContent=isLow()?"Hoy, solo un paso":"Tu siguiente paso";
   $("nowWhy").textContent=isLow()?"Con poca energía, basta con un paso pequeño. "+c.why:c.why;
   $("nowOther").disabled=ranking.filter(r=>r.id!==resumable()?.id).length<2;
 }
@@ -922,6 +920,7 @@ function renderDetail(){
   const it=detailId&&byId(detailId);if(!it||$("view-detalle").hidden)return;
   const i=ARRANCA_CORE.nextIdx(it),steps=it.steps||[];
   if(document.activeElement!==$("detTitle"))$("detTitle").value=it.t;
+  $("detStart").textContent=`Empezar ${timerMin()} min`;
   $("detNextText").textContent=steps[i]?steps[i].s:"Agrega un paso o empieza sin dividir.";
   document.querySelectorAll("#view-detalle [data-g]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===(it.gran||"balanced")));
   $("detSteps").innerHTML=steps.map((x,k)=>`<li class="trow ${x.d?"sdone":""}"><label class="sr" for="st${x.id}">Paso ${k+1}</label>
