@@ -234,6 +234,7 @@ input[aria-invalid=true]{border-color:var(--bad)}
     </form>
     <span class="note" id="capMsg" role="status" aria-live="polite"></span>
     <button class="ghost" id="dumpOpen">Vaciar mi cabeza</button>
+    <button class="ghost" id="freeBtn">Solo un temporizador</button>
     <span class="note" id="inboxCount"></span>
   </div>
   <div class="card" id="dumpCard" hidden>
@@ -734,6 +735,7 @@ function startItem(id){
   activate(it);
 }
 function activate(it){
+  freeOn=false;
   if(S.session&&S.session.taskId!==it.id)closeSession(false);
   if(!it.started){it.started=true;S.tasksStarted++;S.tasksToday[today()]=(S.tasksToday[today()]||0)+1}
   it.touched=Date.now();S.activeId=it.id;ARRANCA_CORE.nextIdx(it);$("pickList").hidden=true;save();resetTimer();go("hacer");
@@ -748,7 +750,7 @@ async function stuck(){
   b.disabled=false;b.textContent="No puedo empezar";resetTimer();renderTask();
 }
 // temporizador visual: el tiempo restante se calcula con marcas de tiempo (resiste cambios de pestaña y suspensión)
-const C=2*Math.PI*52;let tick=null,sessDismissed=false,sessShown=false;
+const C=2*Math.PI*52;let tick=null,sessDismissed=false,sessShown=false,freeOn=false;
 $("ringBar").style.strokeDasharray=C;
 const CORE=ARRANCA_CORE;
 const fmt=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
@@ -766,7 +768,7 @@ function renderTimer(){
   $("ringBar").style.strokeDashoffset=tot?C*(1-left/tot):C;$("timeText").textContent=fmt(left);
   $("playBtn").textContent=!se?"Empezar":se.status==="running"?"Pausar":"Continuar";
   $("timeHint").textContent=en?"bloque terminado":!se?"listo para empezar":se.status==="running"?"en marcha":"en pausa";
-  $("blockEnd").hidden=!en||!c;$("endBtn").hidden=!se;if(!se)$("endAsk").hidden=true;
+  $("blockEnd").hidden=!en||(!c&&!freeOn);$("endBtn").hidden=!se;if(!se)$("endAsk").hidden=true;
   const running=!!se&&se.status==="running";
   $("durBtn").hidden=running;if(running)$("durSeg").hidden=true;
   $("durBtn").textContent=`Cambiar duración · ${Math.round(tot/60)} min`;
@@ -775,9 +777,9 @@ function renderTimer(){
   if(!running&&tick){clearInterval(tick);tick=null}
 }
 const resetTimer=renderTimer;
-$("playBtn").onclick=()=>{const c=active();if(!c)return;checkSession();const se=sess();
+$("playBtn").onclick=()=>{const c=active();if(!c&&!freeOn)return;checkSession();const se=sess();
   if(!se){archiveSession();markActive();$("sStreak").textContent=streak();
-    S.session=CORE.startSession({taskId:c.id,stepId:c.steps[c.idx]?.id,minutes:timerMin()},Date.now());liveSay(`Bloque de ${timerMin()} minutos iniciado.`)}
+    S.session=CORE.startSession({taskId:c?c.id:null,stepId:c?c.steps[c.idx]?.id:null,minutes:timerMin()},Date.now());liveSay(`Bloque de ${timerMin()} minutos iniciado.`)}
   else if(se.status==="running"){CORE.pauseSession(se,Date.now());liveSay("Bloque en pausa.")}
   else{CORE.resumeSession(se,Date.now());liveSay("Seguimos con el bloque.")}
   save();renderTimer()};
@@ -787,7 +789,7 @@ document.querySelectorAll("#durSeg [data-min]").forEach(b=>b.onclick=()=>{const 
   save();$("durSeg").hidden=true;renderTimer()});
 $("endBtn").onclick=()=>{$("endAsk").hidden=false};
 $("endCancel").onclick=()=>{$("endAsk").hidden=true};
-function endBlock(counted){closeSession(counted);liveSay(counted?"Bloque registrado.":"Bloque descartado.");$("endAsk").hidden=true;renderTimer()}
+function endBlock(counted){closeSession(counted);if(!active())freeOn=false;liveSay(counted?"Bloque registrado.":"Bloque descartado.");$("endAsk").hidden=true;renderTask()}
 $("endKeep").onclick=()=>endBlock(true);$("endDrop").onclick=()=>endBlock(false);
 $("blockAgain").onclick=()=>{archiveSession();$("playBtn").onclick()};
 $("blockDone").onclick=()=>$("doneBtn").onclick();
@@ -795,8 +797,8 @@ $("blockLater").onclick=()=>{archiveSession();$("dropBtn").onclick()};
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderTask()});
 window.addEventListener("pageshow",()=>renderTask());
 // sesión pausada al reabrir: nunca se reanuda sola
-$("sessResume").onclick=()=>{const se=S.session,it=se&&byId(se.taskId);if(!it)return;activate(it);
-  const s2=sess();if(s2&&s2.status==="paused"){CORE.resumeSession(s2,Date.now());liveSay("Seguimos con el bloque.")}save();renderTimer()};
+$("sessResume").onclick=()=>{const se=S.session,it=se&&byId(se.taskId);if(se&&se.taskId==null)freeOn=true;else if(!it)return;else activate(it);
+  const s2=sess();if(s2&&s2.status==="paused"){CORE.resumeSession(s2,Date.now());liveSay("Seguimos con el bloque.")}save();renderTask()};
 $("sessLater").onclick=()=>{sessDismissed=true;renderTask()};
 let lastDone=null;
 function finishTask(c){
@@ -817,22 +819,26 @@ $("doneBtn").onclick=()=>{
 $("editStepsBtn").onclick=()=>{const c=active();if(c)openDetail(c.id,false)};
 $("oneMoreBtn").onclick=()=>{if(lowDoneId)startItem(lowDoneId)};
 // 4. Te ayuda a retomar: pausar nunca borra el avance
-$("dropBtn").onclick=()=>{const c=active();if(c)c.touched=Date.now();checkSession();const se=sess();if(se&&se.status==="running")CORE.pauseSession(se,Date.now());if(endedSess())archiveSession();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
+$("dropBtn").onclick=()=>{freeOn=false;const c=active();if(c)c.touched=Date.now();checkSession();const se=sess();if(se&&se.status==="running")CORE.pauseSession(se,Date.now());if(endedSess())archiveSession();S.activeId=null;suggestPos=0;save();resetTimer();renderTask()};
 $("resumeBtn").onclick=()=>{const r=resumable();if(r)startItem(r.id)};
 function resumable(){return openItems().filter(x=>x.started).sort((a,b)=>b.touched-a.touched)[0]||null}
 function bindHelp(){$("helpAsk").querySelectorAll("[data-help]").forEach(b=>b.onclick=()=>{S.helped[b.dataset.help]++;save();
   $("helpAsk").innerHTML=`<span class="helped">Gracias. Esto nos ayuda a mejorar Arranca.</span>`})}
 $("againBtn").onclick=()=>{ranking=null;suggestPos=0;renderTask();rank()};
 $("stuckBtn").onclick=stuck;
+$("freeBtn").onclick=()=>{if(sess())closeSession(false);archiveSession();freeOn=true;S.activeId=null;resetTimer();renderTask();$("playBtn").focus()};
 
 function renderTask(celebrate){
   const c=active();const showDone=!!celebrate;
-  $("doneCard").hidden=!showDone;$("focusCard").hidden=!c;
-  const idle=!c&&!showDone;
-  if(!c&&S.session&&S.session.status==="running"){CORE.pauseSession(S.session,Date.now());save()}
-  let ps=!c&&S.session&&S.session.status==="paused"?S.session:null;
-  if(ps){const pi=byId(ps.taskId);if(!pi||pi.status!=="open"){closeSession(false);ps=null}}
-  if(!c&&endedSess())archiveSession();
+  if(c)freeOn=false;
+  $("doneCard").hidden=!showDone;$("focusCard").hidden=!c&&!freeOn;
+  const idle=!c&&!freeOn&&!showDone;
+  if(!c&&!freeOn&&S.session&&S.session.status==="running"){CORE.pauseSession(S.session,Date.now());save()}
+  let ps=!c&&!freeOn&&S.session&&S.session.status==="paused"?S.session:null;
+  if(ps&&ps.taskId!=null){const pi=byId(ps.taskId);if(!pi||pi.status!=="open"){closeSession(false);ps=null}}
+  if(!c&&!freeOn&&endedSess())archiveSession();
+  ["doneBtn","stuckBtn","editStepsBtn","stepList","blockDone"].forEach(i=>$(i).hidden=!c&&freeOn);
+  if(!c&&freeOn){$("taskTitle").textContent="Bloque libre";$("stepLabel").textContent="Sin tarea asociada";$("stepText").textContent="Un bloque de enfoque"}
   sessShown=!!(idle&&ps&&!sessDismissed);$("sessCard").hidden=!sessShown;
   if(ps)$("sessNote").textContent=`Quedan ${fmt(CORE.remaining(ps,Date.now()))} en tu bloque. Tu avance sigue aquí.`;
   if(c&&S.session&&S.session.taskId===c.id&&c.steps[c.idx])S.session.stepId=c.steps[c.idx].id;
