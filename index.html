@@ -384,9 +384,9 @@ input[aria-invalid=true]{border-color:var(--bad)}
 </section>
 
 <nav><div class="tabs" role="tablist">
-  <button role="tab" data-view="hacer" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hoy</button>
-  <button role="tab" data-view="pendientes" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Pendientes</button>
-  <button role="tab" data-view="historial" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>Historial</button>
+  <button role="tab" data-view="hacer" aria-controls="view-hacer" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hoy</button>
+  <button role="tab" data-view="pendientes" aria-controls="view-pendientes" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Pendientes</button>
+  <button role="tab" data-view="historial" aria-controls="view-historial" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>Historial</button>
 </div></nav>
 
 <section class="lesson" id="lesson" hidden>
@@ -529,6 +529,10 @@ function addXp(n){S.xp+=n;save();$("sXp").textContent=S.xp}
 function go(v){document.querySelectorAll("nav [data-view]").forEach(x=>x.setAttribute("aria-selected",x.dataset.view===v));
   ["hacer","detalle","pendientes","historial","aprender","progreso"].forEach(x=>$("view-"+x).hidden=x!==v);window.scrollTo(0,0);renderAll()}
 document.querySelectorAll("nav [data-view]").forEach(b=>b.onclick=()=>go(b.dataset.view));
+document.querySelector("nav .tabs").addEventListener("keydown",e=>{
+  if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft")return;
+  const t=[...document.querySelectorAll("nav [data-view]")],i=t.indexOf(document.activeElement);if(i<0)return;
+  const n=t[(i+(e.key==="ArrowRight"?1:t.length-1))%t.length];n.focus();go(n.dataset.view);e.preventDefault()});
 
 // ---------- Camino ----------
 function renderPath(){

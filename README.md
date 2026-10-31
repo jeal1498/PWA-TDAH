@@ -18,6 +18,7 @@ El texto de tus tareas no sale del dispositivo. La IA remota está **apagada** (
 - Temporizador de 2/5/10/15 min (5 por defecto) calculado con marcas de tiempo; la sesión (`session`/`sessions`) guarda solo ids y números, nunca texto, y sobrevive a recargas.
 - Lógica pura en `core.js`. Pruebas: `npm test` (`node:test`, sin dependencias).
 - Analítica: no hay ninguna. Si se añade, debe ser opcional, con consentimiento y sin títulos, pasos ni notas (solo tipo de evento, duración y conteos).
+- «Solo un temporizador» crea una sesión con `taskId:null`. «Terminar» marca una tarea como hecha sin pasar por los pasos. Si los datos no se pueden leer se guarda `arranca-v5-corrupto` y se avisa.
 - Aprender, XP, racha y Premium siguen en el código pero ocultos de la navegación principal.
 
 ### Publicar en Vercel
